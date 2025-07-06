@@ -265,8 +265,10 @@ class Adapter(BaseAdapter):
                 task = asyncio.create_task(handle_event(bot, event))
                 self.tasks.add(task)
                 task.add_done_callback(self.tasks.discard)
+        except RuntimeError as e:
+            log("DEBUG", f"{e}")
         except Exception as e:
-            log("ERROR", f"Error processing business message for room {room_id}: {e}")
+            log("ERROR", f"Error processing business message for room {room_id}", e)
 
     async def _heartbeat(self, bot: Bot, ws: WebSocket):
         while True:

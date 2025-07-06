@@ -7,6 +7,7 @@ requires-python = ">=3.9"
 dependencies = [
     "brotli>=1.1.0",
     "nonebot2>=2.4.2",
+    "protobuf>=6.31.1",
 ]
 authors = [
     {name = "MingxuanGame", email = "MingxuanGame@outlook.com"},
@@ -14,11 +15,14 @@ authors = [
 
 [dependency-groups]
 dev = [
+    "mypy-protobuf>=3.6.0",
     "pre-commit>=4.2.0",
     "ruff>=0.12.1",
+    "types-protobuf>=6.30.2.20250703",
 ]
 
 [tool.ruff]
+exclude = ["nonebot/adapters/bilibili_live/pb"]
 line-length = 88
 target-version = "py39"
 

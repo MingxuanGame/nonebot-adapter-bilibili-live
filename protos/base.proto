@@ -1,0 +1,8 @@
+syntax = "proto3";
+
+package bili;
+
+message UserBase {
+    string uname = 1;
+    string face = 2;
+}

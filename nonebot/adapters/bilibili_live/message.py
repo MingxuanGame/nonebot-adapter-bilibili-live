@@ -117,11 +117,13 @@ class Message(BaseMessage[MessageSegment]):
         return messages
 
     @classmethod
-    def construct(cls, msg: str, emots: dict[str, Emoticon]) -> "Message":
+    def construct(cls, msg: str, emots: dict[str, Emoticon] | None) -> "Message":
         segments = []
         cached_text = []
         cached_emoticon = []
         in_emoticon = False
+        if not emots:
+            emots = {}
         for s in msg:
             if s == "[":
                 in_emoticon = True

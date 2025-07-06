@@ -10,8 +10,10 @@ from nonebot.adapters import Adapter as BaseAdapter
 from nonebot.drivers import (
     URL,
     Driver,
+    HTTPClientMixin,
     Request,
     WebSocket,
+    WebSocketClientMixin,
 )
 from nonebot.exception import WebSocketClosed
 from nonebot.message import handle_event
@@ -49,6 +51,14 @@ class Adapter(BaseAdapter):
     def setup(
         self,
     ):
+        if not isinstance(self.driver, HTTPClientMixin) or not isinstance(
+            self.driver, WebSocketClientMixin
+        ):
+            raise RuntimeError(
+                "Bilibili Live adapter requires drivers "
+                "that supports HTTP and WebSocket."
+                f"Current driver {self.config.driver} does not support this."
+            )
         self.driver.on_startup(self.startup)
         self.driver.on_shutdown(self.shutdown)
 

@@ -7,6 +7,7 @@ from typing_extensions import override
 
 from nonebot.adapters import Event as BaseEvent
 from nonebot.compat import model_dump, model_validator, type_validate_python
+from nonebot.utils import escape_tag
 
 from .log import log
 from .message import Emoticon, Message
@@ -14,11 +15,6 @@ from .models.event import GuardLevel, Rank, RankChangeMsg, Sender, SpecialGift
 from .packet import OpCode, Packet
 from .pb import InteractWordV2_pb2, OnlineRankV3_pb2
 from .utils import pb_to_dict
-
-ESCAPE = {
-    ord("<"): "&lt;",
-    ord(">"): "&gt;",
-}
 
 
 class Event(BaseEvent):
@@ -346,7 +342,7 @@ class GuardBuyToastEvent(NoticeEvent):
 
     @override
     def get_event_description(self) -> str:
-        return f"[Room@{self.room_id}] [￥{self.price}] {self.toast_msg}"
+        return f"[Room@{self.room_id}] [￥{self.price}] {escape_tag(self.toast_msg)}"
 
     @model_validator(mode="before")
     @classmethod
@@ -354,7 +350,7 @@ class GuardBuyToastEvent(NoticeEvent):
         return {
             "time": data["data"]["start_time"],
             "room_id": data["room_id"],
-            "toast_msg": data["data"]["toast_msg"].translate(ESCAPE),
+            "toast_msg": data["data"]["toast_msg"],
             **data["data"],
         }
 
@@ -552,7 +548,7 @@ def packet_to_event(packet: Packet, room_id: int) -> Event:
             data = pb_to_dict(message)
             data["_from_pb"] = True
         data["room_id"] = room_id
-        log("TRACE", f"Receive: {str(data).translate(ESCAPE)}")
+        log("TRACE", f"Receive: {escape_tag(str(data))}")
         event_model = COMMAND_TO_EVENT.get(cmd)
         if event_model:
             return type_validate_python(event_model, data)

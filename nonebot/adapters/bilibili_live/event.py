@@ -8,11 +8,17 @@ from typing_extensions import override
 from nonebot.adapters import Event as BaseEvent
 from nonebot.compat import model_dump, model_validator, type_validate_python
 
+from .log import log
 from .message import Emoticon, Message
 from .model import GuardLevel, Rank, RankChangeMsg, Sender, SpecialGift
 from .packet import OpCode, Packet
 from .pb import InteractWordV2_pb2, OnlineRankV3_pb2
 from .utils import pb_to_dict
+
+ESCAPE = {
+    ord("<"): "&lt;",
+    ord(">"): "&gt;",
+}
 
 
 class Event(BaseEvent):
@@ -84,7 +90,7 @@ class DanmakuEvent(MessageEvent):
     color: int
     font_size: int
     content: str
-    emots: dict[str, Emoticon]
+    emots: Optional[dict[str, Emoticon]] = None
     send_from_me: bool
     sender: Sender
 
@@ -137,8 +143,8 @@ class SuperChatEvent(MessageEvent):
     message_font_color: str
     start_time: float
     end_time: float
-    message_trans: str
-    message_jpn: Optional[str]
+    message_trans: Optional[str] = None
+    message_jpn: Optional[str] = None
 
     @override
     def get_event_name(self) -> str:
@@ -151,18 +157,19 @@ class SuperChatEvent(MessageEvent):
     @model_validator(mode="before")
     @classmethod
     def validate(cls, data: dict[str, Any]) -> Any:
+        user = data["data"]["user_info"]
         return {
             "id": data["data"]["id"],
             "price": data["data"]["price"],
             "sender": {
                 "uid": data["data"]["uid"],
-                "face": data["data"]["face"],
-                "name": data["data"]["uname"],
-                "name_color": data["data"]["name_color"],
-                "medal": data["data"].get("medal", None),
+                "face": user["face"],
+                "name": user["uname"],
+                "name_color": data["data"]["uinfo"].get("name_color", 0),
+                "medal": data["data"]["uinfo"].get("medal", None),
             },
-            "message": Message(data["data"]["message"]),
-            "message_font_color": data["data"]["message_font_color"],
+            "message": Message.construct(data["data"]["message"], None),
+            "message_font_color": data["data"].get("message_font_color", ""),
             "start_time": data["data"]["start_time"] / 1000,
             "end_time": data["data"]["end_time"] / 1000,
             "message_trans": data["data"]["message_trans"],
@@ -173,8 +180,7 @@ class SuperChatEvent(MessageEvent):
     @override
     def get_event_description(self) -> str:
         return (
-            f"[Room@{self.room_id}] [SuperChat ￥{self.price}] "
-            f"{self.sender.name}: {self.message}"
+            f"[Room@{self.room_id}] [￥{self.price}] {self.sender.name}: {self.message}"
         )
 
 
@@ -289,6 +295,15 @@ class GuardBuyEvent(NoticeEvent):
             f"{self.guard_level.name} guard(s)"
         )
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, data: dict[str, Any]) -> Any:
+        return {
+            "time": data["data"]["start_time"],
+            "room_id": data["room_id"],
+            **data["data"],
+        }
+
 
 class GuardBuyToastEvent(NoticeEvent):
     color: str
@@ -309,6 +324,16 @@ class GuardBuyToastEvent(NoticeEvent):
     @override
     def get_event_description(self) -> str:
         return f"[Room@{self.room_id}] [￥{self.price}] {self.toast_msg}"
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, data: dict[str, Any]) -> Any:
+        return {
+            "time": data["data"]["start_time"],
+            "room_id": data["room_id"],
+            "toast_msg": data["data"]["toast_msg"].translate(ESCAPE),
+            **data["data"],
+        }
 
 
 class SendGiftEvent(NoticeEvent):
@@ -333,6 +358,15 @@ class SendGiftEvent(NoticeEvent):
             f"[Room@{self.room_id}] [￥{self.price}] {self.uname} sent {self.num} "
             f"{self.gift_name}(s)"
         )
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, data: dict[str, Any]) -> Any:
+        return {
+            "gift_name": data["data"]["giftName"],
+            "room_id": data["room_id"],
+            **data["data"],
+        }
 
 
 class GiftStarProcessEvent(NoticeEvent):
@@ -487,9 +521,8 @@ def packet_to_event(packet: Packet, room_id: int) -> Event:
             data = pb_to_dict(message)
             data["_from_pb"] = True
         data["room_id"] = room_id
+        log("TRACE", f"Receive: {str(data).translate(ESCAPE)}")
         event_model = COMMAND_TO_EVENT.get(cmd)
-        if cmd in ("INTERACT_WORD_V2", "ONLINE_RANK_V2"):
-            pass
         if event_model:
             return type_validate_python(event_model, data)
     raise RuntimeError(

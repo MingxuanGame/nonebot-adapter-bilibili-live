@@ -78,18 +78,13 @@ class Adapter(BaseAdapter):
             await self._login(botconf)
 
     async def shutdown(self):
-        for ws_conn in self.ws.copy():
-            try:
-                await ws_conn.close()
-            except Exception as e:
-                log("ERROR", "Error while closing WebSocket connection", e)
         self.ws.clear()
-        for bot in self.bots.values():
-            self.bot_disconnect(bot)
         for task in self.tasks:
             task.cancel()
-        self.bots.clear()
         self.tasks.clear()
+        for bot in self.bots.copy().values():
+            self.bot_disconnect(bot)
+        self.bots.clear()
 
     async def _login(self, botconf: BLiveBot):
         img_key, sub_key, mid = await self._get_wbi_keys(
@@ -200,9 +195,6 @@ class Adapter(BaseAdapter):
                         e,
                     )
                 finally:
-                    if bot.self_id in self.bots:
-                        bot.seq = 0
-                        self.bot_disconnect(bot)
                     if ws_conn in self.ws:
                         self.ws.remove(ws_conn)
                     if heartbeat_task:

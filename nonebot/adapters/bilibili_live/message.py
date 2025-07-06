@@ -36,7 +36,7 @@ class MessageSegment(BaseMessageSegment["Message"]):
     @staticmethod
     def emoticon(emoji: str) -> "EmoticonSegment":
         return EmoticonSegment(
-            type="emotion",
+            type="emoticon",
             data={
                 "descript": emoji,
                 "emoji": emoji,
@@ -57,7 +57,7 @@ class Text(TypedDict):
 class TextSegment(MessageSegment):
     if TYPE_CHECKING:
         type: Literal["text"]
-        data: Text
+        data: Text  # type: ignore
 
     @override
     def __str__(self) -> str:
@@ -77,12 +77,12 @@ class Emoticon(TypedDict):
 @dataclass
 class EmoticonSegment(MessageSegment):
     if TYPE_CHECKING:
-        type: Literal["emotion"]
-        data: Emoticon
+        type: Literal["emoticon"]
+        data: Emoticon  # type: ignore
 
     @override
     def __str__(self) -> str:
-        return f"[{self.type}]{self.data.get('text', '')}[/{self.type}]"
+        return f"[{self.data['emoji']}]"
 
 
 class Message(BaseMessage[MessageSegment]):

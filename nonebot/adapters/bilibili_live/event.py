@@ -10,7 +10,7 @@ from nonebot.compat import model_dump, model_validator, type_validate_python
 
 from .log import log
 from .message import Emoticon, Message
-from .model import GuardLevel, Rank, RankChangeMsg, Sender, SpecialGift
+from .models.event import GuardLevel, Rank, RankChangeMsg, Sender, SpecialGift
 from .packet import OpCode, Packet
 from .pb import InteractWordV2_pb2, OnlineRankV3_pb2
 from .utils import pb_to_dict
@@ -78,13 +78,23 @@ class HeartbeatEvent(MetaEvent):
 
 # message event
 class MessageEvent(Event):
+    message: Message
+    sender: Sender
+
     @override
     def get_type(self) -> str:
         return "message"
 
+    @override
+    def get_message(self) -> Message:
+        return self.message
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.sender.uid)
+
 
 class DanmakuEvent(MessageEvent):
-    message: Message
     time: float
     mode: int
     color: int
@@ -92,7 +102,6 @@ class DanmakuEvent(MessageEvent):
     content: str
     emots: Optional[dict[str, Emoticon]] = None
     send_from_me: bool
-    sender: Sender
 
     """弹幕消息"""
 
@@ -134,12 +143,14 @@ class DanmakuEvent(MessageEvent):
     def get_event_description(self) -> str:
         return f"[Room@{self.room_id}] {self.sender.name}: {self.content}"
 
+    @override
+    def get_session_id(self) -> str:
+        return f"{self.room_id}_{self.sender.uid}"
+
 
 class SuperChatEvent(MessageEvent):
     id: int
     price: float
-    sender: Sender
-    message: Message
     message_font_color: str
     start_time: float
     end_time: float
@@ -182,6 +193,10 @@ class SuperChatEvent(MessageEvent):
         return (
             f"[Room@{self.room_id}] [￥{self.price}] {self.sender.name}: {self.message}"
         )
+
+    @override
+    def get_session_id(self) -> str:
+        return f"{self.room_id}_{self.sender.uid}_{self.id}"
 
 
 # notice event
@@ -236,6 +251,10 @@ class _InteractWordEvent(NoticeEvent):
             "uname_color": data["data"]["uname_color"],
             "room_id": data["room_id"],
         }
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
 
 
 class UserEnterEvent(_InteractWordEvent):
@@ -304,6 +323,10 @@ class GuardBuyEvent(NoticeEvent):
             **data["data"],
         }
 
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
+
 
 class GuardBuyToastEvent(NoticeEvent):
     color: str
@@ -334,6 +357,10 @@ class GuardBuyToastEvent(NoticeEvent):
             "toast_msg": data["data"]["toast_msg"].translate(ESCAPE),
             **data["data"],
         }
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
 
 
 class SendGiftEvent(NoticeEvent):
@@ -367,6 +394,10 @@ class SendGiftEvent(NoticeEvent):
             "room_id": data["room_id"],
             **data["data"],
         }
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
 
 
 class GiftStarProcessEvent(NoticeEvent):

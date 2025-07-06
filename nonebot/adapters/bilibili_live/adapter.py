@@ -19,6 +19,7 @@ from nonebot.message import handle_event
 from .bot import Bot
 from .config import BLiveBot, Config
 from .event import packet_to_event
+from .exception import ApiNotAvailable
 from .log import log
 from .packet import OpCode, Packet, new_auth_packet
 from .utils import UA, cookie_str_to_dict, make_header
@@ -28,8 +29,6 @@ from .wbi import get_key
 NAV_API = "https://api.bilibili.com/x/web-interface/nav"
 # https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/live/message_stream.md#%E8%8E%B7%E5%8F%96%E4%BF%A1%E6%81%AF%E6%B5%81%E8%AE%A4%E8%AF%81%E7%A7%98%E9%92%A5
 AUTH_URL = "https://api.live.bilibili.com/xlive/web-room/v1/index/getDanmuInfo"
-# https://github.com/SocialSisterYi/bilibili-API-collect/blob/master/docs/live/info.md
-ROOM_INFO_URL = "https://api.live.bilibili.com/room/v1/Room/get_info"
 # https://github.com/SocialSisterYi/bilibili-API-collect/blob/c923eab77c3d64ad4acf8c2b919c970db7244a47/docs/misc/buvid3_4.md#%E4%BB%85%E8%8E%B7%E5%8F%96-buvid3
 BUVID3_URL = "https://www.bilibili.com"
 
@@ -103,22 +102,6 @@ class Adapter(BaseAdapter):
             task = asyncio.create_task(self._listen_room(bot, room_id))
             task.add_done_callback(self.tasks.discard)
 
-    async def _request_room_id(self, bot: Bot, room_id: int) -> int:
-        request = Request(
-            "GET", URL(ROOM_INFO_URL), params=await bot.wbi_encode({"room_id": room_id})
-        )
-        resp = await bot._request(request)
-        if resp.status_code != 200 or not resp.content:
-            raise RuntimeError(
-                f"Failed to get room info: {resp.status_code}, {resp.content}"
-            )
-        data = json.loads(resp.content)
-        if data.get("code") != 0:
-            raise RuntimeError(
-                f"Failed to get room info: {data.get('code')}, {data.get('message')}"
-            )
-        return data["data"]["room_id"]
-
     async def _request_buvid3(self, bot: Bot) -> str:
         request = Request("GET", URL(BUVID3_URL), headers=make_header())
         resp = await self.request(request)
@@ -128,7 +111,7 @@ class Adapter(BaseAdapter):
         request = Request(
             "GET",
             URL(AUTH_URL),
-            params=await bot.wbi_encode({"id": room_id, "type": 0}),
+            params=await bot._wbi_encode({"id": room_id, "type": 0}),
         )
         resp = await bot._request(request)
         if resp.status_code != 200 or not resp.content:
@@ -145,7 +128,7 @@ class Adapter(BaseAdapter):
     async def _listen_room(self, bot: Bot, room_id: int):
         buvid3 = await self._request_buvid3(bot)
         bot.cookie["buvid3"] = buvid3
-        room_id = await self._request_room_id(bot, room_id)
+        room_id = (await bot.get_room_info(room_id)).room_id
         heartbeat_task: asyncio.Task[NoReturn] | None = None
         while True:
             auth_info = await self._auth(bot, room_id)
@@ -279,4 +262,9 @@ class Adapter(BaseAdapter):
         return "Bilibili Live"
 
     @override
-    async def _call_api(self, bot: Bot, api: str, **data: Any) -> Any: ...
+    async def _call_api(self, bot: Bot, api: str, **data: Any) -> Any:
+        log("DEBUG", f"Bot {bot.self_id} calling API <y>{api}</y>")
+        api_handler = getattr(bot.__class__, api, None)
+        if api.startswith("_") or api_handler is None:
+            raise ApiNotAvailable
+        return await api_handler(bot, **data)

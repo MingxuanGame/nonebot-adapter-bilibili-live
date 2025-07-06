@@ -136,7 +136,7 @@ class Message(BaseMessage[MessageSegment]):
                     emoticon_str = "".join(cached_emoticon)
                     if emoticon_str in emots:
                         segments.append(
-                            MessageSegment.emoticon(emots[emoticon_str]["emoji"])
+                            EmoticonSegment(type="emoticon", data=emots[emoticon_str])
                         )
                     else:
                         segments.append(MessageSegment.text(f"[{emoticon_str}]"))

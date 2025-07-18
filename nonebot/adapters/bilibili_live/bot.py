@@ -69,7 +69,7 @@ class Bot(BaseBot):
             )
         return data["data"]
 
-    async def send_danmuku(
+    async def send_danmaku(
         self, room_id: int, msg: str, mode: int = 1, reply_mid: int = 0
     ) -> None:
         """发送弹幕
@@ -263,6 +263,6 @@ class Bot(BaseBot):
             user_id = int(event.get_user_id())
         except ValueError:
             log("WARNING", "Event has no user_id, cannot reply")
-        return await self.send_danmuku(
+        return await self.send_danmaku(
             event.room_id, message, reply_mid=user_id, **kwargs
         )

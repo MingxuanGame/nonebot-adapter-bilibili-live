@@ -84,7 +84,7 @@ BILIBILI_LIVE_BOTS='
 
 ### 弹幕发送
 
-- `send_danmuku()` 发送弹幕消息
+- `send_danmaku()` 发送弹幕消息
 
 ### 直播间信息
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Any, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, Union
 from typing_extensions import override
 
 from nonebot.adapters import Event as BaseEvent
@@ -15,6 +15,27 @@ from .models.event import GuardLevel, Rank, RankChangeMsg, Sender, SpecialGift
 from .packet import OpCode, Packet
 from .pb import interact_word_v2_pb2, online_rank_v3_pb2
 from .utils import pb_to_dict
+
+from google.protobuf.message import Message as ProtoMessage
+
+COMMAND_TO_EVENT: dict[str, type] = {}
+COMMAND_TO_PB: dict[str, type[ProtoMessage]] = {}
+
+
+def cmd(
+    cmd: str, proto: type[ProtoMessage] | None = None
+) -> Callable[[type[Event]], type[Event]]:
+    def wrapper(cls: type[Event]) -> type[Event]:
+        origin = COMMAND_TO_EVENT.get(cmd)
+        if origin is None:
+            COMMAND_TO_EVENT[cmd] = cls
+        else:
+            COMMAND_TO_EVENT[cmd] = Union[origin, cls]
+        if proto is not None:
+            COMMAND_TO_PB[cmd] = proto
+        return cls
+
+    return wrapper
 
 
 class Event(BaseEvent):
@@ -90,6 +111,7 @@ class MessageEvent(Event):
         return str(self.sender.uid)
 
 
+@cmd("DANMU_MSG")
 class DanmakuEvent(MessageEvent):
     time: float
     mode: int
@@ -144,6 +166,7 @@ class DanmakuEvent(MessageEvent):
         return f"{self.room_id}_{self.sender.uid}"
 
 
+@cmd("SUPER_CHAT_MSG")
 class SuperChatEvent(MessageEvent):
     id: int
     price: float
@@ -229,6 +252,8 @@ class _InteractWordEvent(NoticeEvent):
         return str(self.uid)
 
 
+@cmd("INTERACT_WORD")
+@cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
 class UserEnterEvent(_InteractWordEvent):
     msg_type: Literal[1]
 
@@ -241,6 +266,8 @@ class UserEnterEvent(_InteractWordEvent):
         return f"[Room@{self.room_id}] {self.uname} Entered the room"
 
 
+@cmd("INTERACT_WORD")
+@cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
 class UserFollowEvent(_InteractWordEvent):
     msg_type: Literal[2]
 
@@ -253,6 +280,8 @@ class UserFollowEvent(_InteractWordEvent):
         return f"[Room@{self.room_id}] {self.uname} Followed the room"
 
 
+@cmd("INTERACT_WORD")
+@cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
 class UserShareEvent(_InteractWordEvent):
     msg_type: Literal[3]
 
@@ -265,6 +294,7 @@ class UserShareEvent(_InteractWordEvent):
         return f"[Room@{self.room_id}] {self.uname} Shared the room"
 
 
+@cmd("GUARD_BUY")
 class GuardBuyEvent(NoticeEvent):
     uid: int
     username: str
@@ -300,6 +330,7 @@ class GuardBuyEvent(NoticeEvent):
         return str(self.uid)
 
 
+@cmd("GUARD_BUY_TOAST")
 class GuardBuyToastEvent(NoticeEvent):
     color: str
     guard_level: GuardLevel
@@ -335,6 +366,7 @@ class GuardBuyToastEvent(NoticeEvent):
         return str(self.uid)
 
 
+@cmd("SEND_GIFT")
 class SendGiftEvent(NoticeEvent):
     gift_name: str
     num: int
@@ -372,6 +404,7 @@ class SendGiftEvent(NoticeEvent):
         return str(self.uid)
 
 
+@cmd("GIFT_STAR_PROCESS")
 class GiftStarProcessEvent(NoticeEvent):
     status: int
     tip: str
@@ -385,6 +418,7 @@ class GiftStarProcessEvent(NoticeEvent):
         return f"[Room@{self.room_id}] {self.tip}"
 
 
+@cmd("SPECIAL_GIFT")
 class SpecialGiftEvent(NoticeEvent):
     gifts: dict[str, SpecialGift]
 
@@ -402,6 +436,7 @@ class SpecialGiftEvent(NoticeEvent):
 
 
 # class NoticeMsgEvent(NoticeEvent):
+@cmd("LIVE")
 class LiveStartEvent(NoticeEvent):
     live_time: int
     live_platform: str
@@ -415,6 +450,8 @@ class LiveStartEvent(NoticeEvent):
         return f"[Room@{self.room_id}] Live started"
 
 
+@cmd("ONLINE_RANK_V2")
+@cmd("ONLINE_RANK_V3", online_rank_v3_pb2.GoldRankBroadcast)
 class OnlineRankEvent(NoticeEvent):
     online_list: list[Rank]
     rank_type: str
@@ -428,6 +465,7 @@ class OnlineRankEvent(NoticeEvent):
         return f"[Room@{self.room_id}] Rank updated"
 
 
+@cmd("ONLINE_RANK_COUNT")
 class OnlineRankCountEvent(NoticeEvent):
     count: int
 
@@ -436,6 +474,7 @@ class OnlineRankCountEvent(NoticeEvent):
         return "online_rank_count"
 
 
+@cmd("ONLINE_RANK_TOP3")
 class OnlineRankTopEvent(NoticeEvent):
     top: list[RankChangeMsg]
 
@@ -449,6 +488,7 @@ class OnlineRankTopEvent(NoticeEvent):
         return f"[Room@{self.room_id}] {' + '.join(msgs)}"
 
 
+@cmd("LIKE_INFO_V3_UPDATE")
 class LikeInfoUpdateEvent(NoticeEvent):
     click_count: int
     """点赞数"""
@@ -462,6 +502,7 @@ class LikeInfoUpdateEvent(NoticeEvent):
         return f"[Room@{self.room_id}] Click count updated: {self.click_count}"
 
 
+@cmd("WATCHED_CHANGE")
 class WatchedChangeEvent(NoticeEvent):
     num: int
     text_small: str
@@ -477,38 +518,13 @@ class WatchedChangeEvent(NoticeEvent):
         return f"[Room@{self.room_id}] Watched people count change: {self.num}"
 
 
+@cmd("STOP_LIVE_ROOM_LIST")
 class StopLiveRoomListEvent(NoticeEvent):
     room_id_list: list[int]
 
     @override
     def get_event_name(self) -> str:
         return "stop_room_list"
-
-
-COMMAND_TO_EVENT = {
-    "DANMU_MSG": DanmakuEvent,
-    "SUPER_CHAT_MESSAGE": SuperChatEvent,
-    "SUPER_CHAT_MESSAGE_JPN": SuperChatEvent,
-    "INTERACT_WORD": Union[UserEnterEvent, UserFollowEvent, UserShareEvent],
-    "GUARD_BUY": GuardBuyEvent,
-    "USER_TOAST_MSG": GuardBuyToastEvent,
-    "SEND_GIFT": SendGiftEvent,
-    "GIFT_STAR_PROCESS": GiftStarProcessEvent,
-    "SPECIAL_GIFT": SpecialGiftEvent,
-    "LIVE": LiveStartEvent,
-    "ONLINE_RANK_V2": OnlineRankEvent,
-    "ONLINE_RANK_COUNT": OnlineRankCountEvent,
-    "ONLINE_RANK_TOP3": OnlineRankTopEvent,
-    "LIKE_INFO_V3_UPDATE": LikeInfoUpdateEvent,
-    "WATCHED_CHANGE": WatchedChangeEvent,
-    "INTERACT_WORD_V2": Union[UserEnterEvent, UserFollowEvent, UserShareEvent],
-    "STOP_LIVE_ROOM_LIST": StopLiveRoomListEvent,
-    "ONLINE_RANK_V3": OnlineRankEvent,
-}
-COMMAND_TO_PB = {
-    "INTERACT_WORD_V2": interact_word_v2_pb2.InteractWord,
-    "ONLINE_RANK_V3": online_rank_v3_pb2.GoldRankBroadcast,
-}
 
 
 def packet_to_event(packet: Packet, room_id: int) -> Event:

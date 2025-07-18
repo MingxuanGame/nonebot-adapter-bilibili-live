@@ -65,10 +65,10 @@ class SpecialGift(BaseModel):
 class Rank(BaseModel):
     uid: int
     face: str
-    score: int
+    score: str
     uname: str
     rank: int
-    guard_level: GuardLevel
+    guard_level: GuardLevel = GuardLevel.No
 
 
 class RankChangeMsg(BaseModel):

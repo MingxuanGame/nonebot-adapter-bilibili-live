@@ -13,7 +13,7 @@ from .log import log
 from .message import Emoticon, Message
 from .models.event import GuardLevel, Rank, RankChangeMsg, Sender, SpecialGift
 from .packet import OpCode, Packet
-from .pb import InteractWordV2_pb2, OnlineRankV3_pb2
+from .pb import interact_word_v2_pb2, online_rank_v3_pb2
 from .utils import pb_to_dict
 
 
@@ -223,30 +223,6 @@ class _InteractWordEvent(NoticeEvent):
     uname: str
     uname_color: str
     # fans_medal: Medal
-
-    @model_validator(mode="before")
-    @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
-        from_pb = data.get("_from_pb", False)
-        if from_pb:
-            return {
-                "msg_type": data["msg_type"],
-                "timestamp": data["timestamp"],
-                "trigger_time": data["timestamp"],
-                "uid": data["uid"],
-                "uname": data["uname"],
-                "uname_color": "",
-                "room_id": data["room_id"],
-            }
-        return {
-            "msg_type": data["data"]["msg_type"],
-            "timestamp": data["data"]["timestamp"],
-            "trigger_time": data["data"]["trigger_time"],
-            "uid": data["data"]["uid"],
-            "uname": data["data"]["uname"],
-            "uname_color": data["data"]["uname_color"],
-            "room_id": data["room_id"],
-        }
 
     @override
     def get_user_id(self) -> str:
@@ -527,31 +503,29 @@ COMMAND_TO_EVENT = {
     "WATCHED_CHANGE": WatchedChangeEvent,
     "INTERACT_WORD_V2": Union[UserEnterEvent, UserFollowEvent, UserShareEvent],
     "STOP_LIVE_ROOM_LIST": StopLiveRoomListEvent,
-    # "ONLINE_RANK_V3": OnlineRankEvent,
+    "ONLINE_RANK_V3": OnlineRankEvent,
 }
 COMMAND_TO_PB = {
-    "INTERACT_WORD_V2": InteractWordV2_pb2.InteractWordV2,
-    "ONLINE_RANK_V3": OnlineRankV3_pb2.OnlineRankV3,
+    "INTERACT_WORD_V2": interact_word_v2_pb2.InteractWord,
+    "ONLINE_RANK_V3": online_rank_v3_pb2.GoldRankBroadcast,
 }
 
 
 def packet_to_event(packet: Packet, room_id: int) -> Event:
     data = packet.decode_dict()
+    cmd = data.get("cmd", "")
     if packet.opcode == OpCode.HeartbeatReply.value:
         return HeartbeatEvent(popularity=data["popularity"], room_id=room_id)
     elif packet.opcode == OpCode.Command.value:
-        cmd = data["cmd"]
         if (pb := COMMAND_TO_PB.get(cmd)) is not None:
             # https://github.com/SocialSisterYi/bilibili-API-collect/issues/1332
             message = pb()
             message.ParseFromString(base64.b64decode(data["data"]["pb"]))
-            data = pb_to_dict(message)
-            data["_from_pb"] = True
+            data = {}
+            data["data"] = pb_to_dict(message)
         data["room_id"] = room_id
-        log("TRACE", f"Receive: {escape_tag(str(data))}")
+        log("TRACE", f"[{cmd}] Receive: {escape_tag(str(data))}")
         event_model = COMMAND_TO_EVENT.get(cmd)
         if event_model:
             return type_validate_python(event_model, data)
-    raise RuntimeError(
-        f"Unknown packet opcode: {packet.opcode} or command: {data.get('cmd')}"
-    )
+    raise RuntimeError(f"Unknown packet opcode: {packet.opcode} or command: {cmd}")

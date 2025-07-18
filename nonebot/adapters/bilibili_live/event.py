@@ -14,7 +14,6 @@ from .message import Emoticon, Message
 from .models.event import GuardLevel, Rank, RankChangeMsg, Sender, SpecialGift
 from .packet import OpCode, Packet
 from .pb import interact_word_v2_pb2, online_rank_v3_pb2
-from .utils import pb_to_dict
 
 from google.protobuf.message import Message as ProtoMessage
 
@@ -251,6 +250,30 @@ class _InteractWordEvent(NoticeEvent):
     def get_user_id(self) -> str:
         return str(self.uid)
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, data: dict[str, Any]) -> Any:
+        if isinstance(data["data"], interact_word_v2_pb2.InteractWord):
+            p = data["data"]
+            return {
+                "msg_type": p.msg_type,
+                "timestamp": p.timestamp,
+                "trigger_time": p.trigger_time,
+                "uid": p.uid,
+                "uname": p.uname,
+                "uname_color": p.uname_color,
+                "room_id": data["room_id"],
+            }
+        return {
+            "msg_type": data["data"]["msg_type"],
+            "timestamp": data["data"]["timestamp"],
+            "trigger_time": data["data"]["trigger_time"],
+            "uid": data["data"]["uid"],
+            "uname": data["data"]["uname"],
+            "uname_color": data["data"]["uname_color"],
+            "room_id": data["room_id"],
+        }
+
 
 @cmd("INTERACT_WORD")
 @cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
@@ -464,6 +487,35 @@ class OnlineRankEvent(NoticeEvent):
     def get_event_description(self) -> str:
         return f"[Room@{self.room_id}] Rank updated"
 
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, data: dict[str, Any]) -> Any:
+        if isinstance(data["data"], online_rank_v3_pb2.GoldRankBroadcast):
+            p = data["data"]
+            return {
+                "online_list": [
+                    type_validate_python(
+                        Rank,
+                        {
+                            "uid": rank.uid,
+                            "uname": rank.uname,
+                            "face": rank.face,
+                            "rank": rank.rank,
+                            "score": rank.score,
+                            "guard_level": rank.guard_level,
+                        },
+                    )
+                    for rank in p.online_list
+                ],
+                "rank_type": p.rank_type,
+                "room_id": data["room_id"],
+            }
+        return {
+            "online_list": data["data"]["online_list"],
+            "rank_type": data["data"]["rank_type"],
+            "room_id": data["room_id"],
+        }
+
 
 @cmd("ONLINE_RANK_COUNT")
 class OnlineRankCountEvent(NoticeEvent):
@@ -537,8 +589,7 @@ def packet_to_event(packet: Packet, room_id: int) -> Event:
             # https://github.com/SocialSisterYi/bilibili-API-collect/issues/1332
             message = pb()
             message.ParseFromString(base64.b64decode(data["data"]["pb"]))
-            data = {}
-            data["data"] = pb_to_dict(message)
+            data["data"] = message
         data["room_id"] = room_id
         log("TRACE", f"[{cmd}] Receive: {escape_tag(str(data))}")
         event_model = COMMAND_TO_EVENT.get(cmd)

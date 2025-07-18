@@ -8,8 +8,9 @@ from typing_extensions import override
 from nonebot.adapters import Bot as BaseBot
 from nonebot.compat import type_validate_python
 from nonebot.drivers import Request, Response
+from nonebot.message import handle_event
 
-from .event import Event
+from .event import DanmakuEvent, Event
 from .exception import ActionFailed, ApiNotAvailable
 from .log import log
 from .message import Message, MessageSegment
@@ -20,6 +21,11 @@ from .wbi import wbi_encode
 
 if TYPE_CHECKING:
     from .adapter import Adapter
+
+
+def _check_to_me(bot: Bot, event: Event) -> None:
+    if isinstance(event, DanmakuEvent):
+        event.to_me = int(bot.self_id) == event.reply_mid
 
 
 class Bot(BaseBot):
@@ -41,6 +47,10 @@ class Bot(BaseBot):
         self.cookie = cookie
         self.seq = 0
         self._today = datetime.datetime.now().day
+
+    async def _handle_event(self, event: Event) -> None:
+        _check_to_me(self, event)
+        await handle_event(self, event)
 
     async def _wbi_encode(self, data: dict[str, Any] | None = None) -> dict[str, Any]:
         """Encode data with WBI keys."""
@@ -259,10 +269,11 @@ class Bot(BaseBot):
         elif isinstance(message, Message):
             message = "".join(str(seg) for seg in message)
         user_id = 0
-        try:
-            user_id = int(event.get_user_id())
-        except ValueError:
-            log("WARNING", "Event has no user_id, cannot reply")
+        if reply_message:
+            try:
+                user_id = int(event.get_user_id())
+            except ValueError:
+                log("WARNING", "Event has no user_id, cannot reply")
         return await self.send_danmaku(
             event.room_id, message, reply_mid=user_id, **kwargs
         )

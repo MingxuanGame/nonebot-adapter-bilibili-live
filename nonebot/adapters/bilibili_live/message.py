@@ -114,6 +114,8 @@ class Message(BaseMessage[MessageSegment]):
                 cached_emoticon.append(s)
             else:
                 cached_text.append(s)
+        if cached_text:
+            messages.append(MessageSegment.text("".join(cached_text)))
         return messages
 
     @classmethod

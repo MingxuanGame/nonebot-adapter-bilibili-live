@@ -16,7 +16,6 @@ from nonebot.drivers import (
     WebSocketClientMixin,
 )
 from nonebot.exception import WebSocketClosed
-from nonebot.message import handle_event
 
 from .bot import Bot
 from .config import BLiveBot, Config
@@ -242,12 +241,12 @@ class Adapter(BaseAdapter):
             if isinstance(decoded_data, list):
                 for sub_packet in decoded_data:
                     event = packet_to_event(sub_packet, room_id)
-                    task = asyncio.create_task(handle_event(bot, event))
+                    task = asyncio.create_task(bot._handle_event(event))
                     self.tasks.add(task)
                     task.add_done_callback(self.tasks.discard)
             else:
                 event = packet_to_event(packet, room_id)
-                task = asyncio.create_task(handle_event(bot, event))
+                task = asyncio.create_task(bot._handle_event(event))
                 self.tasks.add(task)
                 task.add_done_callback(self.tasks.discard)
         except RuntimeError as e:

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
-from typing import Any, Callable, Literal, Optional, Union
+from typing import Any, Callable, Literal, Optional, TypeVar, Union
 from typing_extensions import override
 
 from nonebot.adapters import Event as BaseEvent
@@ -21,10 +21,13 @@ COMMAND_TO_EVENT: dict[str, type] = {}
 COMMAND_TO_PB: dict[str, type[ProtoMessage]] = {}
 
 
+T = TypeVar("T")
+
+
 def cmd(
     cmd: str, proto: type[ProtoMessage] | None = None
-) -> Callable[[type[Event]], type[Event]]:
-    def wrapper(cls: type[Event]) -> type[Event]:
+) -> Callable[[type[T]], type[T]]:
+    def wrapper(cls: type[T]) -> type[T]:
         origin = COMMAND_TO_EVENT.get(cmd)
         if origin is None:
             COMMAND_TO_EVENT[cmd] = cls
@@ -119,16 +122,16 @@ class DanmakuEvent(MessageEvent):
     content: str
     emots: Optional[dict[str, Emoticon]] = None
     send_from_me: bool
+    reply_mid: int
+    reply_uname: str
+    reply_uname_color: str
+    to_me: bool = False
 
     """弹幕消息"""
 
     @override
     def get_event_name(self) -> str:
         return "danmaku"
-
-    @override
-    def get_message(self) -> Message:
-        return self.message
 
     @model_validator(mode="before")
     @classmethod
@@ -154,15 +157,25 @@ class DanmakuEvent(MessageEvent):
                 "medal": user["medal"],
             },
             "room_id": data["room_id"],
+            "reply_mid": extra.get("reply_mid", 0),
+            "reply_uname": extra.get("reply_uname", ""),
+            "reply_uname_color": extra.get("reply_uname_color", ""),
         }
 
     @override
     def get_event_description(self) -> str:
-        return f"[Room@{self.room_id}] {self.sender.name}: {self.content}"
+        return (
+            f"[Room@{self.room_id}] {self.sender.name}: "
+            f"{f'@{self.reply_uname}' if self.reply_uname else ''} {self.content}"
+        )
 
     @override
     def get_session_id(self) -> str:
         return f"{self.room_id}_{self.sender.uid}"
+
+    @override
+    def is_tome(self) -> bool:
+        return self.to_me
 
 
 @cmd("SUPER_CHAT_MSG")

@@ -22,7 +22,7 @@ dev = [
 ]
 
 [tool.ruff]
-exclude = ["nonebot/adapters/bilibili_live/pb"]
+exclude = ["src/nonebot/adapters/bilibili_live/pb"]
 line-length = 88
 target-version = "py39"
 

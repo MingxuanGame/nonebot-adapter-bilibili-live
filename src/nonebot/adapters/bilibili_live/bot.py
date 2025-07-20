@@ -1,26 +1,32 @@
 from __future__ import annotations
 
 import datetime
+import hashlib
+import hmac
 import json
+import time
 from typing import TYPE_CHECKING, Any, Union
 from typing_extensions import override
+import uuid
 
 from nonebot.adapters import Bot as BaseBot
 from nonebot.compat import type_validate_python
-from nonebot.drivers import Request, Response
+from nonebot.drivers import URL, Request, Response
 from nonebot.message import handle_event
 
+from .const import PLATFORM_URL
 from .event import DanmakuEvent, Event
 from .exception import ActionFailed, ApiNotAvailable
 from .log import log
 from .message import Message, MessageSegment
+from .models.open import Game
 from .models.room import MasterData, Room, UserRoomStatus
 from .models.user_manage import SilentUserListData
 from .utils import make_header
 from .wbi import wbi_encode
 
 if TYPE_CHECKING:
-    from .adapter import Adapter
+    from .adapter import _OpenplatformAdapterMixin, _WebApiAdapterMixin
 
 
 def _check_to_me(bot: Bot, event: Event) -> None:
@@ -29,11 +35,17 @@ def _check_to_me(bot: Bot, event: Event) -> None:
 
 
 class Bot(BaseBot):
-    adapter: "Adapter"
+    async def _handle_event(self, event: Event) -> None:
+        _check_to_me(self, event)
+        await handle_event(self, event)
+
+
+class WebBot(Bot):
+    adapter: "_WebApiAdapterMixin"
 
     def __init__(
         self,
-        adapter: "Adapter",
+        adapter: "_WebApiAdapterMixin",
         self_id: str,
         img_key: str,
         sub_key: str,
@@ -47,10 +59,6 @@ class Bot(BaseBot):
         self.cookie = cookie
         self.seq = 0
         self._today = datetime.datetime.now().day
-
-    async def _handle_event(self, event: Event) -> None:
-        _check_to_me(self, event)
-        await handle_event(self, event)
 
     async def _wbi_encode(self, data: dict[str, Any] | None = None) -> dict[str, Any]:
         """Encode data with WBI keys."""
@@ -277,3 +285,68 @@ class Bot(BaseBot):
         return await self.send_danmaku(
             event.room_id, message, reply_mid=user_id, **kwargs
         )
+
+
+class OpenBot(Bot):
+    adapter: "_OpenplatformAdapterMixin"
+
+    def __init__(
+        self,
+        adapter: "_OpenplatformAdapterMixin",
+        self_id: str,
+        access_secret: str,
+        app_id: int,
+    ):
+        super().__init__(adapter, self_id)
+        self.access_key = self_id
+        self.access_secret = access_secret
+        self.app_id = app_id
+
+        self.games: dict[str, Game] = {}
+
+    def make_request(self, path: str, data: dict[str, Any]) -> Request:
+        content = json.dumps(data, ensure_ascii=False)
+        x_bili_header = {
+            "x-bili-accesskeyid": self.access_key,
+            "x-bili-content-md5": hashlib.md5(content.encode("utf-8")).hexdigest(),
+            "x-bili-signature-method": "HMAC-SHA256",
+            "x-bili-signature-nonce": str(uuid.uuid4()),
+            "x-bili-signature-version": "1.0",
+            "x-bili-timestamp": str(round(time.time())),
+        }
+        return Request(
+            method="POST",
+            url=URL(PLATFORM_URL).joinpath(path),
+            headers={
+                "Accept": "application/json",
+                "Content-Type": "application/json",
+                "Authorization": hmac.new(
+                    self.access_secret.encode("utf-8"),
+                    "\n".join((f"{k}:{v}" for k, v in x_bili_header.items())).encode(
+                        "utf-8"
+                    ),
+                    hashlib.sha256,
+                ).hexdigest(),
+                **x_bili_header,
+            },
+            content=content,
+        )
+
+    @override
+    async def send(
+        self,
+        event: Event,
+        message: Union[str, Message, MessageSegment],
+        reply_message: bool = False,
+        **kwargs,
+    ) -> Any:
+        raise ApiNotAvailable
+
+    async def _close(self) -> None:
+        for game in self.games.values():
+            request = self.make_request(
+                "v2/app/end",
+                {"app_id": self.app_id, "game_id": game.game_id},
+            )
+            _ = await self.adapter.request(request)
+        self.games.clear()

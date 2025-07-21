@@ -82,7 +82,7 @@ class EmoticonSegment(MessageSegment):
 
     @override
     def __str__(self) -> str:
-        return f"[{self.data['emoji']}]"
+        return self.data["emoji"]
 
 
 class Message(BaseMessage[MessageSegment]):
@@ -105,9 +105,11 @@ class Message(BaseMessage[MessageSegment]):
                 if cached_text:
                     messages.append(MessageSegment.text(" ".join(cached_text)))
                     cached_text = []
+                cached_emoticon.append(s)
             elif s == "]":
+                cached_emoticon.append(s)
                 in_emoticon = False
-                if cached_emoticon:
+                if cached_emoticon and len(cached_emoticon) > 2:
                     messages.append(MessageSegment.emoticon("".join(cached_emoticon)))
                     cached_emoticon = []
             elif in_emoticon:
@@ -132,7 +134,9 @@ class Message(BaseMessage[MessageSegment]):
                 if cached_text:
                     segments.append(MessageSegment.text("".join(cached_text)))
                     cached_text = []
+                cached_emoticon.append(s)
             elif s == "]":
+                cached_emoticon.append(s)
                 in_emoticon = False
                 if cached_emoticon:
                     emoticon_str = "".join(cached_emoticon)
@@ -141,7 +145,7 @@ class Message(BaseMessage[MessageSegment]):
                             EmoticonSegment(type="emoticon", data=emots[emoticon_str])
                         )
                     else:
-                        segments.append(MessageSegment.text(f"[{emoticon_str}]"))
+                        segments.append(MessageSegment.text(emoticon_str))
                     cached_emoticon = []
             elif in_emoticon:
                 cached_emoticon.append(s)

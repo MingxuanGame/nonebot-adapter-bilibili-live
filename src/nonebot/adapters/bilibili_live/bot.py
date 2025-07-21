@@ -15,7 +15,7 @@ from nonebot.drivers import URL, Request, Response
 from nonebot.message import handle_event
 
 from .const import PLATFORM_URL
-from .event import DanmakuEvent, Event
+from .event import DanmakuEvent, Event, SuperChatEvent
 from .exception import ActionFailed, ApiNotAvailable
 from .log import log
 from .message import Message, MessageSegment
@@ -31,7 +31,13 @@ if TYPE_CHECKING:
 
 def _check_to_me(bot: Bot, event: Event) -> None:
     if isinstance(event, DanmakuEvent):
-        event.to_me = int(bot.self_id) == event.reply_mid
+        if isinstance(bot, OpenBot):
+            master_open_id = bot.games[event.room_id].open_id
+            event.to_me = master_open_id == event.reply_open_id
+        else:
+            event.to_me = int(bot.self_id) == (event.reply_mid)
+    elif isinstance(event, SuperChatEvent) and isinstance(bot, OpenBot):
+        event.to_me = True
 
 
 class Bot(BaseBot):
@@ -302,7 +308,7 @@ class OpenBot(Bot):
         self.access_secret = access_secret
         self.app_id = app_id
 
-        self.games: dict[str, Game] = {}
+        self.games: dict[int, Game] = {}
 
     def make_request(self, path: str, data: dict[str, Any]) -> Request:
         content = json.dumps(data, ensure_ascii=False)

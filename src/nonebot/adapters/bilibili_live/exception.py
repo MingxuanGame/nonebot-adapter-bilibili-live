@@ -7,6 +7,12 @@ from nonebot.exception import (
 )
 
 
+class InteractionEndException(Exception):
+    def __init__(self, game_id: str, timestamp: int) -> None:
+        self.game_id = game_id
+        self.timestamp = timestamp
+
+
 class BilibiliLiveAdapterException(AdapterException):
     def __init__(self):
         super().__init__("Bilibili Live")

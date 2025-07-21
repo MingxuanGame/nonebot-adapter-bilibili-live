@@ -28,7 +28,7 @@ from .const import (
     RECONNECT_INTERVAL,
 )
 from .event import packet_to_event
-from .exception import ApiNotAvailable
+from .exception import ApiNotAvailable, InteractionEndException
 from .log import log
 from .models.open import Game
 from .packet import OpCode, Packet, ProtocolVersion, new_auth_packet
@@ -63,10 +63,22 @@ class _Base(BaseAdapter):
             )
             heartbeat_task = asyncio.create_task(self._heartbeat(ws_conn))
             await self._ws_loop(bot, ws_conn, room_id)
+        except InteractionEndException as e:
+            log(
+                "WARNING",
+                (
+                    f"<r><bg #f8bbd0>Openplatform stopped the game "
+                    f"{e.game_id} at {e.timestamp} for {room_id}</bg #f8bbd0></r>"
+                    "Trying to reconnect...</bg #f8bbd0></r>"
+                ),
+            )
         except WebSocketClosed as e:
             log(
                 "ERROR",
-                "<r><bg #f8bbd0>WebSocket Closed</bg #f8bbd0></r>",
+                (
+                    "<r><bg #f8bbd0>WebSocket Closed</bg #f8bbd0></r>"
+                    "Trying to reconnect...</bg #f8bbd0></r>"
+                ),
                 e,
             )
         except Exception as e:
@@ -142,6 +154,8 @@ class _Base(BaseAdapter):
                 task = asyncio.create_task(bot._handle_event(event))
                 self.tasks.add(task)
                 task.add_done_callback(self.tasks.discard)
+        except InteractionEndException:
+            raise
         except RuntimeError as e:
             log("DEBUG", f"{e}")
         except Exception as e:
@@ -338,7 +352,7 @@ class _OpenplatformAdapterMixin(_Base):
                 game_id=data["data"]["game_info"]["game_id"],
                 **data["data"]["anchor_info"],
             )
-            bot.games[code] = game
+            bot.games[game.room_id] = game
             url = data["data"]["websocket_info"]["wss_link"][0]
             auth_body = data["data"]["websocket_info"]["auth_body"]
             ws = Request(
@@ -356,7 +370,7 @@ class _OpenplatformAdapterMixin(_Base):
                     ws_conn,
                     auth_packet,
                 )
-            bot.games.pop(code, None)
+            bot.games.pop(game.room_id, None)
 
 
 class Adapter(_WebApiAdapterMixin, _OpenplatformAdapterMixin):

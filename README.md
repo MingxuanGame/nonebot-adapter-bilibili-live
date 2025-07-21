@@ -91,6 +91,7 @@ BILIBILI_LIVE_BOTS='
 - _`UserEnterEvent` 用户进入直播间_
 - `UserFollowEvent` 用户关注主播
 - `UserShareEvent` 用户分享直播间
+- _`LikeEvent` 点赞_
 
 ### 礼物相关
 

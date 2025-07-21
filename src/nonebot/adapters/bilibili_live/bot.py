@@ -36,8 +36,12 @@ def _check_to_me(bot: Bot, event: Event) -> None:
             event.to_me = master_open_id == event.reply_open_id
         else:
             event.to_me = int(bot.self_id) == (event.reply_mid)
-    elif isinstance(event, SuperChatEvent) and isinstance(bot, OpenBot):
-        event.to_me = True
+    elif isinstance(event, SuperChatEvent):
+        if isinstance(bot, OpenBot):
+            event.to_me = True
+        elif isinstance(bot, WebBot):
+            master_id = bot.rooms[event.room_id].uid
+            event.to_me = int(bot.self_id) == master_id
 
 
 class Bot(BaseBot):
@@ -55,13 +59,12 @@ class WebBot(Bot):
         self_id: str,
         img_key: str,
         sub_key: str,
-        rooms: list[int],
         cookie: dict[str, str],
     ):
         super().__init__(adapter, self_id)
         self.img_key = img_key
         self.sub_key = sub_key
-        self.rooms = rooms
+        self.rooms: dict[int, Room] = {}
         self.cookie = cookie
         self.seq = 0
         self._today = datetime.datetime.now().day

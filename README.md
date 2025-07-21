@@ -73,13 +73,11 @@ BILIBILI_LIVE_BOTS='
 
 获取用户 ID 建议使用 `event.get_user_id()` 方法，而不是 `event.uid` 或 `event.open_id`。
 
-来自开放平台的 `SuperChatEvent` 事件会被认为是 `to_me`。
-
 <details>
 <summary>消息类事件</summary>
 
 - _`DanmakuEvent` 弹幕消息_
-- _`SuperChatEvent` 醒目留言_
+- _`SuperChatEvent` 醒目留言。来自开放平台的会被认为是 `to_me`；来自用户 Bot 的当 Bot 为主播账号时会被认为是 `to_me`。_
 
 </details>
 

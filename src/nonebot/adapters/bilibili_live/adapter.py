@@ -205,7 +205,6 @@ class _WebApiAdapterMixin(_Base):
             self_id=str(mid),
             img_key=img_key,
             sub_key=sub_key,
-            rooms=botconf.room_ids,
             cookie=cookie_str_to_dict(botconf.cookie),
         )
         self.bot_connect(bot)
@@ -239,7 +238,9 @@ class _WebApiAdapterMixin(_Base):
     async def _listen_room_web(self, bot: WebBot, room_id: int):
         buvid3 = await self._request_buvid3(bot)
         bot.cookie["buvid3"] = buvid3
-        room_id = (await bot.get_room_info(room_id)).room_id
+        room = await bot.get_room_info(room_id)
+        bot.rooms[room_id] = room
+        room_id = room.room_id
         while True:
             auth_info = await self._auth(bot, room_id)
             token = auth_info["token"]

@@ -24,10 +24,6 @@ class GuardLevel(IntEnum):
 class Medal(BaseModel):
     name: str
     level: int
-    color_start: int
-    color_end: int
-    color_border: int
-    color: int
     id: int
     typ: int
     is_light: int
@@ -37,14 +33,21 @@ class Medal(BaseModel):
     guard_icon: str
     honor_icon: str
     user_receive_count: int
+    color_start: int
+    color_end: int
+    color_border: int
+    color: int
 
 
-class Sender(BaseModel):
+class User(BaseModel):
     uid: int
-    face: str
     name: str
-    name_color: int
-    medal: Optional[Medal]
+    face: str = ""
+    open_id: str = ""
+    name_color: Optional[int] = None
+    is_admin: Optional[bool] = None
+    special: Optional[str] = None
+    medal: Optional[Medal] = None
 
 
 class SpecialGift(BaseModel):
@@ -74,3 +77,39 @@ class Rank(BaseModel):
 class RankChangeMsg(BaseModel):
     msg: str
     rank: int
+
+
+class BatchComboSend(BaseModel):
+    action: str
+    batch_combo_id: str
+    batch_combo_num: int
+    gift_id: int
+    gift_name: str
+    gift_num: int
+    uid: int
+    uname: str
+
+
+# class ReceiveUserInfo(BaseModel):
+#     uid: int
+#     uname: str
+
+
+# class AnchorInfo(BaseModel):
+#     uid: int
+#     open_id: str = ""
+#     union_id: str = ""
+#     uname: str
+#     uface: str
+
+
+class ComboInfo(BaseModel):
+    combo_base_num: int
+    combo_count: int
+    combo_id: str
+    combo_timeout: int
+
+
+class BlindGift(BaseModel):
+    blind_gift_id: int
+    status: bool

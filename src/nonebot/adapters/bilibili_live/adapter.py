@@ -157,7 +157,7 @@ class _Base(BaseAdapter):
         except InteractionEndException:
             raise
         except RuntimeError as e:
-            log("DEBUG", f"{e}")
+            log("TRACE", f"{e}")
         except Exception as e:
             log("ERROR", f"Error processing business message for room {room_id}", e)
 

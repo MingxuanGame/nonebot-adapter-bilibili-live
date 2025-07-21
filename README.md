@@ -90,6 +90,12 @@ BILIBILI_LIVE_BOTS='
 - `UserFollowEvent` 用户关注主播
 - `UserShareEvent` 用户分享直播间
 - _`LikeEvent` 点赞_
+- `InteractionVote` 投票互动事件
+- `InteractionDanmaku` 弹幕互动事件
+- `InteractionFollow` 关注互动事件
+- `InteractionGift` 送礼互动事件
+- `InteractionShare` 分享互动事件
+- `InteractionLike` 点赞互动事件
 
 ### 礼物相关
 
@@ -110,6 +116,26 @@ BILIBILI_LIVE_BOTS='
 - `LikeInfoUpdateEvent` 点赞数更新
 - `WatchedChangeEvent` 看过人数
 - `StopLiveRoomListEvent` 下播的直播间
+
+### 直播间管理
+
+- `RoomRealTimeMessageUpdateEvent` 主播信息更新
+- `RoomChangeEvent` 直播间信息更改
+- `ChangeRoomInfoEvent` 直播间背景图片修改
+- `RoomSkinMsgEvent` 直播间皮肤变更
+- `RoomSilentOnEvent` 开启等级禁言
+- `RoomSilentOffEvent` 关闭等级禁言
+- `RoomBlockMsgEvent` 指定观众禁言
+- `RoomAdminsEvent` 房管列表
+- `RoomAdminEntranceEvent` 设立房管
+- `RoomAdminRevokeEvent` 撤销房管
+
+### 排行榜
+
+- `PopularRankChangedEvent` 直播间在人气榜的排名改变
+- `HotRankChangedEvent` 直播间限时热门榜排名改变
+- `HotRankSettlementEvent` 限时热门榜上榜信息
+- `AreaRankChangedEvent` 直播间在所属分区的排名改变
 
 </details>
 
@@ -143,11 +169,6 @@ __API 仅限用户 Bot。__
 - `del_silent_user()` 解除禁言
 
 </details>
-
-## ToDo
-
-- [ ] 完善事件
-- [ ] 完善 API
 
 ## 代码实现参考
 

@@ -16,11 +16,14 @@ from .models.event import (
     BatchComboSend,
     BlindGift,
     ComboInfo,
+    DanmakuCombo,
     GuardLevel,
     Rank,
     RankChangeMsg,
     SpecialGift,
     User,
+    VoteCombo,
+    VoteOption,
 )
 from .packet import OpCode, Packet
 from .pb import interact_word_v2_pb2, online_rank_v3_pb2
@@ -137,15 +140,18 @@ class MessageEvent(Event):
 class DanmakuEvent(MessageEvent):
     time: float
     mode: int
-    color: int
-    font_size: int
     content: str
     emots: Optional[dict[str, Emoticon]] = None
-    send_from_me: bool
-    reply_mid: int
-    reply_open_id: str
     reply_uname: str
+
+    reply_mid: int
+    color: int
+    font_size: int
+    send_from_me: bool
     reply_uname_color: str
+
+    reply_open_id: str
+
     to_me: bool = False
     msg_id: str = ""
 
@@ -266,12 +272,15 @@ class DanmakuEvent(MessageEvent):
 class SuperChatEvent(MessageEvent):
     id: int
     price: float
-    message_font_color: str
     start_time: float
     end_time: float
+
+    message_font_color: str
     message_trans: Optional[str] = None
     message_jpn: Optional[str] = None
+
     msg_id: str = ""
+
     to_me: bool = False
 
     @override
@@ -412,8 +421,9 @@ class _InteractWordEvent(NoticeEvent):
 @cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
 @cmd("LIVE_OPEN_PLATFORM_LIVE_ROOM_ENTER")
 class UserEnterEvent(_InteractWordEvent):
-    msg_type: Literal[1]
     open_id: str = ""
+
+    msg_type: Literal[1]
 
     @override
     def get_event_name(self) -> str:
@@ -478,17 +488,19 @@ class UserShareEvent(_InteractWordEvent, WebOnlyEvent):
 @cmd("GUARD_BUY")
 @cmd("LIVE_OPEN_PLATFORM_GUARD")
 class GuardBuyEvent(NoticeEvent):
-    uid: int
-    open_id: str = ""
     face: str = ""
     username: str
     guard_level: GuardLevel
-    guard_unit: str = ""
     num: int = 1
     price: float
     gift_id: int
     gift_name: str
     time: int
+
+    uid: int
+
+    open_id: str = ""
+    guard_unit: str = ""
     msg_id: str = ""
 
     @override
@@ -735,7 +747,196 @@ class LikeEvent(NoticeEvent):
         return str(self.uid) if self.open_id == "" else self.open_id
 
 
-# # class NoticeMsgEvent(NoticeEvent):
+class _DMInteraction(NoticeEvent, WebOnlyEvent):
+    id: int
+    status: int
+    type: Literal[101, 102, 103, 104, 105, 106]
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, data: dict[str, Any]) -> Any:
+        data_ = json.loads(data["data"]["data"])
+        return {
+            "room_id": data["room_id"],
+            **data["data"],
+            **data_,
+        }
+
+
+@cmd("DM_INTERACTION")
+class InteractionVote(_DMInteraction):
+    """投票互动事件"""
+
+    type: Literal[101]
+    question: str
+    """投票问题"""
+    options: list[VoteOption]
+    """投票详细选项"""
+    vote_id: int
+    """投票id"""
+    cnt: int
+    """弹幕计数"""
+    duration: int
+    """持续时间，单位毫秒"""
+    left_duration: int
+    """剩余时间，单位毫秒"""
+    fade_duration: int
+    waiting_duration: int
+    result: int
+    """投票倾向状态"""
+    result_text: str
+    """投票倾向提示"""
+    component: str
+    """投票链接"""
+    natural_die_duration: int
+    my_vote: int
+    component_anchor: str
+    """投票控制链接"""
+    audit_reason: str
+    """审核结果"""
+    combo: list[VoteCombo]
+    """投票状态展示"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "interaction_vote"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Vote: {self.question} -> {self.result_text}"
+
+
+@cmd("DM_INTERACTION")
+class InteractionDanmaku(_DMInteraction):
+    """弹幕互动事件"""
+
+    type: Literal[102]
+    combo: list[DanmakuCombo]
+    """连续发送弹幕事件信息"""
+    merge_interval: int
+    """合并弹幕时间间隔"""
+    card_appear_interval: int
+    """弹窗出现时间间隔"""
+    send_interval: int
+    """发送时间间隔"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "interaction_danmaku"
+
+
+@cmd("DM_INTERACTION")
+class InteractionFollow(_DMInteraction):
+    """关注互动事件"""
+
+    type: Literal[103]
+    fade_duration: int
+    """"""
+    cnt: int
+    """关注计数"""
+    card_appear_interval: int
+    """"""
+    suffix_text: str
+    """提示文本"""
+    reset_cnt: int
+    """"""
+    display_flag: int
+    """"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "interaction_follow"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.cnt}{self.suffix_text}"
+
+
+@cmd("DM_INTERACTION")
+class InteractionGift(_DMInteraction):
+    """送礼互动事件"""
+
+    type: Literal[104]
+    fade_duration: int
+    """"""
+    cnt: int
+    """投喂计数"""
+    card_appear_interval: int
+    """"""
+    suffix_text: str
+    """提示文本"""
+    reset_cnt: int
+    """"""
+    display_flag: int
+    """"""
+    gift_id: int
+    """礼物 ID"""
+    gift_alert_message: str
+    """"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "interaction_gift"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.cnt}{self.suffix_text}"
+
+
+@cmd("DM_INTERACTION")
+class InteractionShare(_DMInteraction):
+    """分享互动事件"""
+
+    type: Literal[105]
+    fade_duration: int
+    """"""
+    cnt: int
+    """分享计数"""
+    card_appear_interval: int
+    """"""
+    suffix_text: str
+    """提示文本"""
+    reset_cnt: int
+    """"""
+    display_flag: int
+    """"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "interaction_share"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.cnt}{self.suffix_text}"
+
+
+@cmd("DM_INTERACTION")
+class InteractionLike(_DMInteraction):
+    """点赞互动事件"""
+
+    type: Literal[106]
+    fade_duration: int
+    """"""
+    cnt: int
+    """点赞计数"""
+    card_appear_interval: int
+    """"""
+    suffix_text: str
+    """提示文本"""
+    reset_cnt: int
+    """"""
+    display_flag: int
+    """"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "interaction_like"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.cnt}{self.suffix_text}"
+
+
 @cmd("LIVE")
 class WebLiveStartEvent(NoticeEvent, WebOnlyEvent):
     live_time: int
@@ -886,6 +1087,367 @@ class StopLiveRoomListEvent(NoticeEvent, WebOnlyEvent):
     @override
     def get_event_name(self) -> str:
         return "stop_room_list"
+
+
+@cmd("ROOM_REAL_TIME_MESSAGE_UPDATE")
+class RoomRealTimeMessageUpdateEvent(NoticeEvent, WebOnlyEvent):
+    """主播信息更新"""
+
+    roomid: int
+    """直播间ID"""
+    fans: int
+    """主播当前粉丝数"""
+    fans_club: int
+    """主播粉丝团人数"""
+    # red_notice: int  # 待调查
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_real_time_message_update"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Fans: {self.fans}, Fan club: {self.fans_club}"
+
+
+@cmd("POPULAR_RANK_CHANGED")
+class PopularRankChangedEvent(NoticeEvent, WebOnlyEvent):
+    """直播间在人气榜的排名改变"""
+
+    uid: int
+    """主播 mid"""
+    rank: int
+    """人气榜排名"""
+    countdown: int
+    """人气榜下轮结算剩余时长"""
+    timestamp: int
+    """触发时的Unix时间戳"""
+    # cache_key: str  # 待调查
+
+    @override
+    def get_event_name(self) -> str:
+        return "popular_rank_changed"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Popular rank changed to #{self.rank}"
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
+
+
+@cmd("HOT_RANK_CHANGED")
+@cmd("HOT_RANK_CHANGED_V2")
+class HotRankChangedEvent(NoticeEvent, WebOnlyEvent):
+    """直播间限时热门榜排名改变"""
+
+    rank: int
+    """排名"""
+    # trend: int  # 趋势 - 待调查
+    countdown: int
+    """剩余时间"""
+    timestamp: int
+    """当前时间"""
+    web_url: str
+    """排行榜 URL"""
+    live_url: str
+    """排行榜 URL"""
+    blink_url: str
+    """排行榜 URL"""
+    live_link_url: str
+    """排行榜 URL"""
+    pc_link_url: str
+    """排行榜 URL"""
+    icon: str
+    """图标 URL"""
+    area_name: str
+    """分区名称"""
+    rank_desc: Optional[str] = None
+    """排行榜说明"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "hot_rank_changed"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Hot rank changed to #{self.rank}"
+
+
+@cmd("HOT_RANK_SETTLEMENT")
+@cmd("HOT_RANK_SETTLEMENT_V2")
+class HotRankSettlementEvent(NoticeEvent, WebOnlyEvent):
+    """限时热门榜上榜信息"""
+
+    area_name: str
+    """分区名称"""
+    # cache_key: str  # 待调查
+    dm_msg: str
+    """弹幕提示信息"""
+    # dmscore: int  # 待调查
+    face: str
+    """主播头像 URL"""
+    icon: str
+    """图标 URL"""
+    rank: int
+    """排名"""
+    timestamp: int
+    """时间"""
+    uname: str
+    """主播用户名"""
+    url: str
+    """排行榜 URL"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "hot_rank_settlement"
+
+    @override
+    def get_event_description(self) -> str:
+        return (
+            f"[Room@{self.room_id}] {self.uname} ranked "
+            f"#{self.rank} in {self.area_name}"
+        )
+
+
+@cmd("AREA_RANK_CHANGED")
+class AreaRankChangedEvent(NoticeEvent, WebOnlyEvent):
+    """直播间在所属分区的排名改变"""
+
+    # conf_id: int  # 配置 ID - 待调查
+    rank_name: str
+    """排行榜名称"""
+    uid: int
+    """主播 mid"""
+    rank: int
+    """直播间在分区的排名"""
+    icon_url_blue: str
+    """蓝色排名图标 URL"""
+    icon_url_pink: str
+    """粉色排名图标 URL"""
+    icon_url_grey: str
+    """灰色排名图标 URL"""
+    # action_type: int  # 待调查
+    timestamp: int
+    """当前时间"""
+    # msg_id: str  # 待调查
+    jump_url_link: str
+    """排行榜跳转链接"""
+    jump_url_pc: str
+    """排行榜跳转链接"""
+    jump_url_pink: str
+    """排行榜跳转链接"""
+    jump_url_web: str
+    """排行榜跳转链接"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "area_rank_changed"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.rank_name} rank changed to #{self.rank}"
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
+
+
+@cmd("ROOM_CHANGE")
+class RoomChangeEvent(NoticeEvent, WebOnlyEvent):
+    """直播间信息更改"""
+
+    title: str
+    """直播间标题"""
+    area_id: int
+    """当前直播间所属二级分区的ID"""
+    parent_area_id: int
+    """当前直播间所属一级分区的ID"""
+    area_name: str
+    """当前直播间所属二级分区的名称"""
+    parent_area_name: str
+    """当前直播间所属一级分区名称"""
+    live_key: str
+    """标记直播场次的key"""
+    sub_session_key: str
+    """待调查"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_change"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Room info changed: {self.title}"
+
+
+@cmd("CHANGE_ROOM_INFO")
+class ChangeRoomInfoEvent(NoticeEvent, WebOnlyEvent):
+    """直播间背景图片修改"""
+
+    background: str
+    """背景图 URL"""
+    roomid: int
+    """直播间 ID"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "change_room_info"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Background image changed"
+
+
+@cmd("ROOM_SKIN_MSG")
+class RoomSkinMsgEvent(NoticeEvent, WebOnlyEvent):
+    """直播间皮肤变更"""
+
+    skin_id: int
+    """皮肤 ID"""
+    # status: int  # 状态 - 待调查
+    end_time: int
+    """皮肤结束时间"""
+    current_time: int
+    """当前时间"""
+    only_local: bool
+    """仅在本地显示"""
+    # scatter: dict  # 待调查
+    # skin_config: SkinConfig  # 皮肤配置 - 待调查
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_skin_msg"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Skin changed: {self.skin_id}"
+
+
+@cmd("ROOM_SILENT_ON")
+class RoomSilentOnEvent(NoticeEvent, WebOnlyEvent):
+    """开启等级禁言"""
+
+    type: str
+    """类型"""
+    level: int
+    """等级"""
+    second: int
+    """时间"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_silent_on"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Level silent on: level {self.level}"
+
+
+@cmd("ROOM_SILENT_OFF")
+class RoomSilentOffEvent(NoticeEvent, WebOnlyEvent):
+    """关闭等级禁言"""
+
+    type: str
+    """类型"""
+    level: int
+    """等级"""
+    second: int
+    """时间"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_silent_off"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Level silent off"
+
+
+@cmd("ROOM_BLOCK_MSG")
+class RoomBlockMsgEvent(NoticeEvent, WebOnlyEvent):
+    """指定观众禁言"""
+
+    uid: int
+    """禁言用户 mid"""
+    uname: str
+    """禁言用户名"""
+    # data: RoomBlockUser  # 详细信息 - 含有重复字段，暂时注释
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_block_msg"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.uname} blocked"
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
+
+
+@cmd("ROOM_ADMINS")
+class RoomAdminsEvent(NoticeEvent, WebOnlyEvent):
+    """房管列表"""
+
+    uids: list[int]
+    """房管 mid 列表"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_admins"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Admin list updated, {len(self.uids)} admins"
+
+
+@cmd("room_admin_entrance")
+class RoomAdminEntranceEvent(NoticeEvent, WebOnlyEvent):
+    """设立房管"""
+
+    # dmscore: int  # 弹幕分数 - 待调查
+    # level: int  # 等级 - 待调查
+    msg: str
+    """提示信息"""
+    uid: int
+    """用户 mid"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_admin_entrance"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.msg}"
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
+
+
+@cmd("ROOM_ADMIN_REVOKE")
+class RoomAdminRevokeEvent(NoticeEvent, WebOnlyEvent):
+    """撤销房管"""
+
+    msg: str
+    """提示信息"""
+    uid: int
+    """用户 mid"""
+
+    @override
+    def get_event_name(self) -> str:
+        return "room_admin_revoke"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.msg}"
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid)
 
 
 def packet_to_event(packet: Packet, room_id: int) -> Event:

@@ -90,19 +90,6 @@ class BatchComboSend(BaseModel):
     uname: str
 
 
-# class ReceiveUserInfo(BaseModel):
-#     uid: int
-#     uname: str
-
-
-# class AnchorInfo(BaseModel):
-#     uid: int
-#     open_id: str = ""
-#     union_id: str = ""
-#     uname: str
-#     uface: str
-
-
 class ComboInfo(BaseModel):
     combo_base_num: int
     combo_count: int
@@ -113,3 +100,71 @@ class ComboInfo(BaseModel):
 class BlindGift(BaseModel):
     blind_gift_id: int
     status: bool
+
+
+class VoteOption(BaseModel):
+    """投票选项"""
+
+    idx: int
+    """选项索引"""
+    desc: str
+    """选项内容"""
+    cnt: int
+    """票数"""
+    percent: int
+    """显示占比"""
+
+
+class VoteCombo(BaseModel):
+    """投票状态展示"""
+
+    id: int
+    """标识id，同VoteOption.idx"""
+    status: int
+    """状态，同InteractionVote.status"""
+    content: str
+    """投票选项内容"""
+    cnt: str
+    """弹幕计数"""
+    guide: str
+    """引导文本，通常为空字符串"""
+    left_duration: int
+    """剩余时间"""
+    fade_duration: int
+    """渐变持续时间"""
+    prefix_icon: str
+    """投票选项图标"""
+
+
+class DanmakuCombo(BaseModel):
+    """连续发送弹幕事件信息"""
+
+    id: int
+    """标识 ID"""
+    status: int
+    """状态"""
+    content: str
+    """重复的弹幕内容"""
+    cnt: int
+    """重复数量"""
+    guide: str
+    """标题词"""
+    left_duration: int
+    """左移时长"""
+    fade_duration: int
+    """淡化时长"""
+
+
+# class SkinConfig(BaseModel):
+#     """直播间皮肤配置"""
+#     pass  # 待调查具体字段
+
+
+# class RoomBlockUser(BaseModel):
+#     """被禁言的用户信息"""
+#     uid: int
+#     """禁言用户 mid"""
+#     uname: str
+#     """禁言用户名"""
+#     # dmscore: int  # 弹幕分数 - 待调查
+#     # operator: int  # 操作者 - 待调查

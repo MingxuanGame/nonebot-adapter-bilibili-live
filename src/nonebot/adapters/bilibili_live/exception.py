@@ -4,6 +4,7 @@ from nonebot.exception import (
     ActionFailed as BaseActionFailed,
     AdapterException,
     ApiNotAvailable as BaseApiNotAvailable,
+    NetworkError as BaseNetworkError,
 )
 
 
@@ -31,3 +32,6 @@ class ActionFailed(BaseActionFailed, BilibiliLiveAdapterException):
 
     def __repr__(self) -> str:
         return f"ActionFailed(code={self.code!r}, message={self.message!r})"
+
+
+class NetworkError(BilibiliLiveAdapterException, BaseNetworkError): ...

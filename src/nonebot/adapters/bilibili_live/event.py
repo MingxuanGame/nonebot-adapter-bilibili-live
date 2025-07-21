@@ -684,6 +684,57 @@ class SpecialGiftEvent(NoticeEvent, WebOnlyEvent):
         }
 
 
+@cmd("LIKE_INFO_V3_CLICK")
+@cmd("LIVE_OPEN_PLATFORM_LIKE")
+class LikeEvent(NoticeEvent):
+    uname: str
+    uid: int
+    like_text: str
+
+    uname_color: Optional[str] = None
+    like_icon: Optional[str] = None
+
+    open_id: str = ""
+    uface: str = ""
+    timestamp: Optional[int] = None
+    like_count: Optional[int] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate(cls, data: dict[str, Any]) -> Any:
+        if "open_id" in data["data"]:
+            return {
+                "uname": data["data"]["uname"],
+                "uid": data["data"]["uid"],
+                "like_text": data["data"]["like_text"],
+                "open_id": data["data"]["open_id"],
+                "uface": data["data"]["uface"],
+                "timestamp": data["data"]["timestamp"],
+                "like_count": data["data"]["like_count"],
+                "room_id": data["room_id"],
+            }
+        return {
+            "uname": data["data"]["uname"],
+            "uid": data["data"]["uid"],
+            "like_text": data["data"]["like_text"],
+            "uname_color": data["data"]["uname_color"],
+            "like_icon": data["data"]["like_icon"],
+            "room_id": data["room_id"],
+        }
+
+    @override
+    def get_event_name(self) -> str:
+        return "like"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] {self.uname} {self.like_text}"
+
+    @override
+    def get_user_id(self) -> str:
+        return str(self.uid) if self.open_id == "" else self.open_id
+
+
 # # class NoticeMsgEvent(NoticeEvent):
 @cmd("LIVE")
 class WebLiveStartEvent(NoticeEvent, WebOnlyEvent):

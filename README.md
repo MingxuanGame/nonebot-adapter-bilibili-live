@@ -1,4 +1,4 @@
-# NoneBot-Adapter-Bilibili-Live
+# NoneBot-Adapter-BiliBili-Live
 
 B 站直播间协议支持
 

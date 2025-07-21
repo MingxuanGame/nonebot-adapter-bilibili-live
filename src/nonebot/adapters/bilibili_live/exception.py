@@ -16,7 +16,7 @@ class InteractionEndException(Exception):
 
 class BilibiliLiveAdapterException(AdapterException):
     def __init__(self):
-        super().__init__("Bilibili Live")
+        super().__init__("bilibili Live")
 
 
 class ApiNotAvailable(BaseApiNotAvailable, BilibiliLiveAdapterException): ...

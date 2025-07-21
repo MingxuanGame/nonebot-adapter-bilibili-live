@@ -387,7 +387,7 @@ class Adapter(_WebApiAdapterMixin, _OpenplatformAdapterMixin):
             self.driver, WebSocketClientMixin
         ):
             raise RuntimeError(
-                "Bilibili Live adapter requires drivers "
+                "bilibili Live adapter requires drivers "
                 "that supports HTTP and WebSocket."
                 f"Current driver {self.config.driver} does not support this."
             )
@@ -415,7 +415,7 @@ class Adapter(_WebApiAdapterMixin, _OpenplatformAdapterMixin):
     @classmethod
     @override
     def get_name(cls) -> str:
-        return "Bilibili Live"
+        return "bilibili Live"
 
     @override
     async def _call_api(self, bot: Bot, api: str, **data: Any) -> Any:

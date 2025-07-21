@@ -67,11 +67,11 @@ BILIBILI_LIVE_BOTS='
 
 ## 实现
 
-标斜体的为用户 Bot 和开放平台 Bot 共有实现。
+标斜体的为用户 Bot 和开放平台 Bot 共有实现，粗体的为开放平台 Bot 独有实现（继承 `OpenplatformOnlyEvent`），其他为用户 Bot 独有实现（继承 `WebOnlyEvent`）。
 
 来自开放平台的事件的 `uid` 均为 `0`，相应的存在 `open_id` 字段。
 
-获取用户 ID 建议使用 `Event.get_user_id()` 方法，而不是 `event.uid` 或 `event.open_id`。
+获取用户 ID 建议使用 `event.get_user_id()` 方法，而不是 `event.uid` 或 `event.open_id`。
 
 来自开放平台的 `SuperChatEvent` 事件会被认为是 `to_me`。
 
@@ -102,7 +102,9 @@ BILIBILI_LIVE_BOTS='
 
 ### 直播状态
 
-- `LiveStartEvent` 直播开始
+- __`OpenLiveStartEvent` 开播事件__
+- __`OpenLiveEndEvent` 下播事件__
+- `WebLiveStartEvent` 直播开始
 - `OnlineRankEvent` 高能榜更新
 - `OnlineRankCountEvent` 高能用户数量
 - `OnlineRankTopEvent` 到达直播间高能榜前三名

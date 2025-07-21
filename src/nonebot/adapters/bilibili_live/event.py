@@ -83,6 +83,13 @@ class Event(BaseEvent):
         return False
 
 
+class OpenplatformOnlyEvent(Event):
+    open_id: str = ""
+
+
+class WebOnlyEvent(Event): ...
+
+
 # meta event
 
 
@@ -442,7 +449,7 @@ class UserEnterEvent(_InteractWordEvent):
 
 @cmd("INTERACT_WORD")
 @cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
-class UserFollowEvent(_InteractWordEvent):
+class UserFollowEvent(_InteractWordEvent, WebOnlyEvent):
     msg_type: Literal[2]
 
     @override
@@ -456,7 +463,7 @@ class UserFollowEvent(_InteractWordEvent):
 
 @cmd("INTERACT_WORD")
 @cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
-class UserShareEvent(_InteractWordEvent):
+class UserShareEvent(_InteractWordEvent, WebOnlyEvent):
     msg_type: Literal[3]
 
     @override
@@ -516,7 +523,7 @@ class GuardBuyEvent(NoticeEvent):
 
 
 @cmd("GUARD_BUY_TOAST")
-class GuardBuyToastEvent(NoticeEvent):
+class GuardBuyToastEvent(NoticeEvent, WebOnlyEvent):
     color: str
     guard_level: GuardLevel
     num: int
@@ -553,7 +560,7 @@ class GuardBuyToastEvent(NoticeEvent):
 
 @cmd("SEND_GIFT")
 @cmd("LIVE_OPEN_PLATFORM_SEND_GIFT")
-class SendGiftEvent(NoticeEvent):
+class SendGiftEvent(NoticeEvent, WebOnlyEvent):
     gift_name: str
     num: int
     price: float
@@ -647,7 +654,7 @@ class SendGiftEvent(NoticeEvent):
 
 
 @cmd("GIFT_STAR_PROCESS")
-class GiftStarProcessEvent(NoticeEvent):
+class GiftStarProcessEvent(NoticeEvent, WebOnlyEvent):
     status: int
     tip: str
 
@@ -661,7 +668,7 @@ class GiftStarProcessEvent(NoticeEvent):
 
 
 @cmd("SPECIAL_GIFT")
-class SpecialGiftEvent(NoticeEvent):
+class SpecialGiftEvent(NoticeEvent, WebOnlyEvent):
     gifts: dict[str, SpecialGift]
 
     @override
@@ -678,24 +685,55 @@ class SpecialGiftEvent(NoticeEvent):
 
 
 # # class NoticeMsgEvent(NoticeEvent):
-# @cmd("LIVE")
-# @cmd("LIVE_OPEN_PLATFORM_LIVE_START")
-# class LiveStartEvent(NoticeEvent):
-#     live_time: int
-#     live_platform: str
+@cmd("LIVE")
+class WebLiveStartEvent(NoticeEvent, WebOnlyEvent):
+    live_time: int
+    live_platform: str
 
-#     @override
-#     def get_event_name(self) -> str:
-#         return "live_start"
+    @override
+    def get_event_name(self) -> str:
+        return "live_start"
 
-#     @override
-#     def get_event_description(self) -> str:
-#         return f"[Room@{self.room_id}] Live started"
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Live started"
+
+
+class _OpenLiveEvent(NoticeEvent, OpenplatformOnlyEvent):
+    area_name: str
+    title: str
+    timestamp: int
+
+    @override
+    def get_event_name(self) -> str:
+        return "open_live_event"
+
+
+@cmd("LIVE_OPEN_PLATFORM_LIVE_START")
+class OpenLiveStartEvent(_OpenLiveEvent):
+    @override
+    def get_event_name(self) -> str:
+        return "open_live_start"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Live started in {self.area_name}: {self.title}"
+
+
+@cmd("LIVE_OPEN_PLATFORM_LIVE_END")
+class OpenLiveEndEvent(_OpenLiveEvent):
+    @override
+    def get_event_name(self) -> str:
+        return "open_live_end"
+
+    @override
+    def get_event_description(self) -> str:
+        return f"[Room@{self.room_id}] Live ended in {self.area_name}: {self.title}"
 
 
 @cmd("ONLINE_RANK_V2")
 @cmd("ONLINE_RANK_V3", online_rank_v3_pb2.GoldRankBroadcast)
-class OnlineRankEvent(NoticeEvent):
+class OnlineRankEvent(NoticeEvent, WebOnlyEvent):
     online_list: list[Rank]
     rank_type: str
 
@@ -738,7 +776,7 @@ class OnlineRankEvent(NoticeEvent):
 
 
 @cmd("ONLINE_RANK_COUNT")
-class OnlineRankCountEvent(NoticeEvent):
+class OnlineRankCountEvent(NoticeEvent, WebOnlyEvent):
     count: int
 
     @override
@@ -747,7 +785,7 @@ class OnlineRankCountEvent(NoticeEvent):
 
 
 @cmd("ONLINE_RANK_TOP3")
-class OnlineRankTopEvent(NoticeEvent):
+class OnlineRankTopEvent(NoticeEvent, WebOnlyEvent):
     top: list[RankChangeMsg]
 
     @override
@@ -761,7 +799,7 @@ class OnlineRankTopEvent(NoticeEvent):
 
 
 @cmd("LIKE_INFO_V3_UPDATE")
-class LikeInfoUpdateEvent(NoticeEvent):
+class LikeInfoUpdateEvent(NoticeEvent, WebOnlyEvent):
     click_count: int
     """点赞数"""
 
@@ -775,7 +813,7 @@ class LikeInfoUpdateEvent(NoticeEvent):
 
 
 @cmd("WATCHED_CHANGE")
-class WatchedChangeEvent(NoticeEvent):
+class WatchedChangeEvent(NoticeEvent, WebOnlyEvent):
     num: int
     text_small: str
     text_large: str
@@ -791,7 +829,7 @@ class WatchedChangeEvent(NoticeEvent):
 
 
 @cmd("STOP_LIVE_ROOM_LIST")
-class StopLiveRoomListEvent(NoticeEvent):
+class StopLiveRoomListEvent(NoticeEvent, WebOnlyEvent):
     room_id_list: list[int]
 
     @override

@@ -185,7 +185,9 @@ class DanmakuEvent(MessageEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         if "data" in data:
             # Openplatform DM
             content = data["data"]["msg"]
@@ -328,7 +330,9 @@ class SuperChatEvent(MessageEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         data_ = data["data"]
         if "open_id" in data_:
             sender = User(
@@ -401,7 +405,9 @@ class NoticeEvent(Event):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         return {
             "room_id": data["room_id"],
             **data["data"],
@@ -469,7 +475,9 @@ class _InteractWordEvent(NoticeEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         return _interact_word_validator(data)
 
 
@@ -492,7 +500,9 @@ class UserEnterEvent(_InteractWordEvent):
     @model_validator(mode="before")
     @classmethod
     @override
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         if (
             isinstance(data["data"], interact_word_v2_pb2.InteractWord)
             or "open_id" not in data["data"]
@@ -576,7 +586,9 @@ class GuardBuyEvent(NoticeEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         if "user_info" in data["data"]:
             data["data"]["uid"] = data["data"]["user_info"]["uid"]
             data["data"]["face"] = data["data"]["user_info"]["uface"]
@@ -618,7 +630,9 @@ class GuardBuyToastEvent(NoticeEvent, WebOnlyEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         return {
             "time": data["data"]["start_time"],
             "room_id": data["room_id"],
@@ -678,7 +692,9 @@ class SendGiftEvent(NoticeEvent, WebOnlyEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         data_obj = data["data"]
         if "open_id" in data_obj:
             # OpenBot
@@ -753,7 +769,9 @@ class SpecialGiftEvent(NoticeEvent, WebOnlyEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         return {
             "gifts": data["data"],
             "room_id": data["room_id"],
@@ -778,7 +796,9 @@ class LikeEvent(NoticeEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         if "open_id" in data["data"]:
             return {
                 "uname": data["data"]["uname"],
@@ -821,7 +841,9 @@ class _DMInteraction(NoticeEvent, WebOnlyEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         data_ = json.loads(data["data"]["data"])
         return {
             "room_id": data["room_id"],
@@ -1066,7 +1088,9 @@ class OnlineRankEvent(NoticeEvent, WebOnlyEvent):
 
     @model_validator(mode="before")
     @classmethod
-    def validate(cls, data: dict[str, Any]) -> Any:
+    def validate(cls, data: dict[str, Any] | Any) -> Any:
+        if not isinstance(data, dict):
+            return data
         if isinstance(data["data"], online_rank_v3_pb2.GoldRankBroadcast):
             p = data["data"]
             return {

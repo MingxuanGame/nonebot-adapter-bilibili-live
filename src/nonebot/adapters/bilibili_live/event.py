@@ -18,12 +18,14 @@ from .models.event import (
     ComboInfo,
     DanmakuCombo,
     GuardLevel,
+    Medal,
     Rank,
     RankChangeMsg,
     SpecialGift,
     User,
     VoteCombo,
     VoteOption,
+    WebMedal,
 )
 from .packet import OpCode, Packet
 from .pb import interact_word_v2_pb2, online_rank_v3_pb2
@@ -135,6 +137,28 @@ class MessageEvent(Event):
         )
 
 
+def _medal_validator(medal: dict[str, Any] | None) -> WebMedal | None:
+    if not medal or not medal["medal_name"]:
+        return None
+    medal["name"] = medal["medal_name"]
+    medal["level"] = medal["medal_level"]
+    return type_validate_python(
+        WebMedal,
+        medal,
+    )
+
+
+def _open_medal_validator(medal: dict[str, Any]) -> Medal | None:
+    if not medal["fans_medal_name"]:
+        return None
+    return Medal(
+        name=medal["fans_medal_name"],
+        level=medal["fans_medal_level"],
+        is_lighted=medal["fans_medal_wearing_status"],
+        guard_level=GuardLevel(medal["guard_level"]),
+    )
+
+
 @cmd("DANMU_MSG")
 @cmd("LIVE_OPEN_PLATFORM_DM")
 class DanmakuEvent(MessageEvent):
@@ -187,7 +211,7 @@ class DanmakuEvent(MessageEvent):
                 name=data["data"]["uname"],
                 is_admin=data["data"].get("is_admin", False),
                 open_id=data["data"]["open_id"],
-                # medal
+                medal=_open_medal_validator(data["data"]),
             )
             reply_mid = 0
             reply_uname = data["data"].get("reply_uname", "")
@@ -222,12 +246,23 @@ class DanmakuEvent(MessageEvent):
             time = data["info"][0][4] / 1000
             mode = data["info"][0][1]
             send_from_me = extra["send_from_me"]
+            medal = user["medal"]
+            if medal:
+                medal = WebMedal(
+                    target_id=medal["ruid"],
+                    medal_color=medal["color"],
+                    medal_color_border=medal["color_border"],
+                    medal_color_end=medal["color_end"],
+                    medal_color_start=medal["color_start"],
+                    is_lighted=medal["is_light"],
+                    **medal,
+                )
             sender = User(
                 uid=user["uid"],
                 face=user["base"]["face"],
                 name=user["base"]["name"],
                 name_color=user["base"]["name_color"],
-                medal=user["medal"],
+                medal=medal,
             )
             msg_id = ""
             color = data["info"][0][3]
@@ -266,7 +301,7 @@ class DanmakuEvent(MessageEvent):
         return self.to_me
 
 
-@cmd("SUPER_CHAT_MSG")
+@cmd("SUPER_CHAT_MESSAGE")
 @cmd("SUPER_CHAT_MESSAGE_JPN")
 @cmd("LIVE_OPEN_PLATFORM_SUPER_CHAT")
 class SuperChatEvent(MessageEvent):
@@ -301,6 +336,7 @@ class SuperChatEvent(MessageEvent):
                 face=data_["uface"],
                 name=data_["uname"],
                 open_id=data_["open_id"],
+                medal=_open_medal_validator(data_),
             )
             msg_id = data_.get("msg_id", "")
             message_id = data_.get("message_id", "")
@@ -316,7 +352,7 @@ class SuperChatEvent(MessageEvent):
                 face=user["face"],
                 name=user["uname"],
                 name_color=user.get("name_color", 0),
-                medal=user.get("medal", None),
+                medal=_medal_validator(data["data"]["medal_info"]),
             )
             msg_id = ""
             message_id = ""
@@ -378,6 +414,24 @@ class NoticeEvent(Event):
 def _interact_word_validator(data: dict[str, Any]) -> dict[str, Any]:
     if isinstance(data["data"], interact_word_v2_pb2.InteractWord):
         p = data["data"]
+        f = p.fans_medal
+        if f.medal_name:
+            medal = WebMedal(
+                anchor_uname=None,
+                anchor_roomid=f.anchor_roomid,
+                target_id=f.target_id,
+                score=f.score,
+                medal_color=f.medal_color,
+                medal_color_border=f.medal_color_border,
+                medal_color_end=f.medal_color_end,
+                medal_color_start=f.medal_color_start,
+                name=f.medal_name,
+                level=f.medal_level,
+                is_lighted=bool(f.is_lighted),
+                guard_level=GuardLevel(f.guard_level),
+            )
+        else:
+            medal = None
         return {
             "msg_type": p.msg_type,
             "timestamp": p.timestamp,
@@ -386,6 +440,7 @@ def _interact_word_validator(data: dict[str, Any]) -> dict[str, Any]:
             "uname": p.uname,
             "uname_color": p.uname_color,
             "room_id": data["room_id"],
+            "fans_medal": medal,
         }
     return {
         "msg_type": data["data"]["msg_type"],
@@ -395,6 +450,7 @@ def _interact_word_validator(data: dict[str, Any]) -> dict[str, Any]:
         "uname": data["data"]["uname"],
         "uname_color": data["data"]["uname_color"],
         "room_id": data["room_id"],
+        "fans_medal": _medal_validator(data["data"].get("fans_medal", None)),
     }
 
 
@@ -405,7 +461,7 @@ class _InteractWordEvent(NoticeEvent):
     uid: int
     uname: str
     uname_color: str
-    # fans_medal: Medal
+    fans_medal: Optional[Medal] = None
 
     @override
     def get_user_id(self) -> str:
@@ -450,6 +506,7 @@ class UserEnterEvent(_InteractWordEvent):
             "timestamp": data["data"]["timestamp"],
             "trigger_time": data["data"]["timestamp"],
             "open_id": data["data"]["open_id"],
+            "fans_medal": _open_medal_validator(data["data"]),
         }
 
     @override
@@ -461,6 +518,7 @@ class UserEnterEvent(_InteractWordEvent):
 @cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
 class UserFollowEvent(_InteractWordEvent, WebOnlyEvent):
     msg_type: Literal[2]
+    fans_medal: Optional[WebMedal] = None
 
     @override
     def get_event_name(self) -> str:
@@ -475,6 +533,7 @@ class UserFollowEvent(_InteractWordEvent, WebOnlyEvent):
 @cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
 class UserShareEvent(_InteractWordEvent, WebOnlyEvent):
     msg_type: Literal[3]
+    fans_medal: Optional[WebMedal] = None
 
     @override
     def get_event_name(self) -> str:
@@ -502,6 +561,7 @@ class GuardBuyEvent(NoticeEvent):
     open_id: str = ""
     guard_unit: str = ""
     msg_id: str = ""
+    medal: Optional[Medal] = None
 
     @override
     def get_event_name(self) -> str:
@@ -523,6 +583,7 @@ class GuardBuyEvent(NoticeEvent):
             data["data"]["username"] = data["data"]["user_info"]["uname"]
             data["data"]["open_id"] = data["data"]["user_info"]["open_id"]
             data["num"] = data["data"]["guard_num"]
+            data["medal"] = _open_medal_validator(data["data"])
         return {
             "time": data["data"].get("start_time", data["data"]["timestamp"]),
             "room_id": data["room_id"],
@@ -534,7 +595,7 @@ class GuardBuyEvent(NoticeEvent):
         return str(self.uid) if self.open_id == "" else self.open_id
 
 
-@cmd("GUARD_BUY_TOAST")
+@cmd("USER_TOAST_MSG")
 class GuardBuyToastEvent(NoticeEvent, WebOnlyEvent):
     color: str
     guard_level: GuardLevel
@@ -580,6 +641,7 @@ class SendGiftEvent(NoticeEvent, WebOnlyEvent):
     uid: int
     uname: str
     face: str
+    medal: Optional[Medal] = None
     guard_level: Optional[int] = None
     receive_user_info: Optional[User] = None
 
@@ -645,6 +707,7 @@ class SendGiftEvent(NoticeEvent, WebOnlyEvent):
                 "combo_gift": data_obj.get("combo_gift"),
                 "combo_info": data_obj.get("combo_info"),
                 "blind_gift": data_obj.get("blind_gift"),
+                "medal": _open_medal_validator(data_obj),
             }
         else:
             # WebBot
@@ -655,6 +718,7 @@ class SendGiftEvent(NoticeEvent, WebOnlyEvent):
                     uid=data_obj["receive_user_info"]["uid"],
                     name=data_obj["receive_user_info"]["uname"],
                 ),
+                "medal": _medal_validator(data_obj.get("medal_info", None)),
             }
             if "giftName" in data_obj:
                 result["gift_name"] = data_obj["giftName"]
@@ -702,6 +766,7 @@ class LikeEvent(NoticeEvent):
     uname: str
     uid: int
     like_text: str
+    fans_medal: Optional[Medal] = None
 
     uname_color: Optional[str] = None
     like_icon: Optional[str] = None
@@ -724,6 +789,7 @@ class LikeEvent(NoticeEvent):
                 "timestamp": data["data"]["timestamp"],
                 "like_count": data["data"]["like_count"],
                 "room_id": data["room_id"],
+                "fans_medal": _open_medal_validator(data["data"]),
             }
         return {
             "uname": data["data"]["uname"],
@@ -732,6 +798,7 @@ class LikeEvent(NoticeEvent):
             "uname_color": data["data"]["uname_color"],
             "like_icon": data["data"]["like_icon"],
             "room_id": data["room_id"],
+            "fans_medal": _medal_validator(data["data"].get("fans_medal", None)),
         }
 
     @override

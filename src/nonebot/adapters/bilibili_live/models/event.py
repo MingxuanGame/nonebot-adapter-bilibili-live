@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from enum import IntEnum
-from typing import Any, Optional
+from typing import Any, Optional, Union
 
 from nonebot.compat import field_validator
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class GuardLevel(IntEnum):
@@ -24,19 +24,21 @@ class GuardLevel(IntEnum):
 class Medal(BaseModel):
     name: str
     level: int
-    id: int
-    typ: int
-    is_light: int
-    ruid: int
-    guard_level: GuardLevel
-    score: int
-    guard_icon: str
-    honor_icon: str
-    user_receive_count: int
-    color_start: int
-    color_end: int
-    color_border: int
-    color: int
+    is_light: bool = Field(..., alias="is_lighted")
+    guard_level: GuardLevel = GuardLevel.No
+
+
+class WebMedal(Medal):
+    anchor_uid: int = Field(..., alias="target_id")
+    anchor_room_id: Optional[int] = Field(None, alias="anchor_roomid")
+    anchor_name: Optional[str] = Field(None, alias="anchor_uname")
+    score: Optional[int] = None
+    color_start: int = Field(..., alias="medal_color_border")
+    color_end: int = Field(..., alias="medal_color_end")
+    color_border: int = Field(..., alias="medal_color_start")
+    color: int = Field(..., alias="medal_color")
+    guard_icon: Optional[str] = None
+    honor_icon: Optional[str] = None
 
 
 class User(BaseModel):
@@ -47,7 +49,7 @@ class User(BaseModel):
     name_color: Optional[int] = None
     is_admin: Optional[bool] = None
     special: Optional[str] = None
-    medal: Optional[Medal] = None
+    medal: Optional[Union[WebMedal, Medal]] = None
 
 
 class SpecialGift(BaseModel):

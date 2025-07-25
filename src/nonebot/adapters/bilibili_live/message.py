@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass
+import re
 from typing import TYPE_CHECKING, Literal, TypedDict
 from typing_extensions import override
 
@@ -32,6 +33,20 @@ class MessageSegment(BaseMessageSegment["Message"]):
     @staticmethod
     def text(text: str) -> "TextSegment":
         return TextSegment(type="text", data={"text": text})
+
+    @staticmethod
+    def at(user_id: int | str, name: str | None = None) -> "AtSegment":
+        is_uid = isinstance(user_id, int) or (
+            isinstance(user_id, str) and user_id.isdigit()
+        )
+        return AtSegment(
+            type="at",
+            data={
+                "uid": int(user_id) if is_uid else 0,
+                "open_id": str(user_id) if not is_uid else "",
+                "name": name,
+            },
+        )
 
     @staticmethod
     def emoticon(emoji: str) -> "EmoticonSegment":
@@ -85,6 +100,41 @@ class EmoticonSegment(MessageSegment):
         return f"<emoticon:{self.data['emoji']}>"
 
 
+class At(TypedDict):
+    uid: int
+    open_id: str
+    name: str | None
+
+
+@dataclass
+class AtSegment(MessageSegment):
+    if TYPE_CHECKING:
+        type: Literal["at"]
+        data: At  # type: ignore
+
+    @property
+    def user_id(self) -> int | str:
+        return self.data["uid"] or self.data["open_id"]
+
+    @property
+    def name(self) -> str | None:
+        return self.data["name"]
+
+    @property
+    def open_id(self) -> str:
+        assert self.data["open_id"]
+        return self.data["open_id"]
+
+    @property
+    def uid(self) -> int:
+        assert self.data["uid"]
+        return self.data["uid"]
+
+    @override
+    def __str__(self) -> str:
+        return f"<at:{self.user_id}>"
+
+
 class Message(BaseMessage[MessageSegment]):
     @classmethod
     @override
@@ -94,33 +144,26 @@ class Message(BaseMessage[MessageSegment]):
     @staticmethod
     @override
     def _construct(msg: str) -> Iterable[MessageSegment]:
-        # just implement it, use `construct` to construct the accurate message
-        messages = []
-        cached_text = []
-        cached_emoticon = []
-        in_emoticon = False
-        for s in msg:
-            if s == "<":
-                in_emoticon = True
-                if cached_text:
-                    messages.append(MessageSegment.text("".join(cached_text)))
-                    cached_text = []
-            elif s == ">":
-                in_emoticon = False
-                if cached_emoticon:
-                    messages.append(
-                        MessageSegment.emoticon(
-                            "".join(cached_emoticon)[len("emoticon:") :]
-                        )
-                    )
-                    cached_emoticon = []
-            elif in_emoticon:
-                cached_emoticon.append(s)
+        text_begin = 0
+        for embed in re.finditer(
+            r"\<(?P<type>(?:at:|emoticon:))!?(?P<id>\w+?)\>",
+            msg,
+        ):
+            content = msg[text_begin : embed.pos + embed.start()]
+            if content:
+                yield MessageSegment.text(content)
+            text_begin = embed.pos + embed.end()
+            if embed.group("type") == "at:":
+                yield MessageSegment.at(
+                    user_id=embed.group("id"),
+                )
             else:
-                cached_text.append(s)
-        if cached_text:
-            messages.append(MessageSegment.text("".join(cached_text)))
-        return messages
+                yield MessageSegment.emoticon(
+                    emoji=embed.group("id"),
+                )
+        content = msg[text_begin:]
+        if content:
+            yield MessageSegment.text(content)
 
     @classmethod
     def construct(cls, msg: str, emots: dict[str, Emoticon] | None) -> "Message":

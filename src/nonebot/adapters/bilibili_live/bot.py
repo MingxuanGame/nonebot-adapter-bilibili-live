@@ -18,7 +18,7 @@ from .const import PLATFORM_URL
 from .event import DanmakuEvent, Event, SuperChatEvent
 from .exception import ActionFailed, ApiNotAvailable
 from .log import log
-from .message import Message, MessageSegment
+from .message import AtSegment, Message, MessageSegment
 from .models.open import Game
 from .models.room import MasterData, Room, UserRoomStatus
 from .models.user_manage import SilentUserListData
@@ -281,18 +281,21 @@ class WebBot(Bot):
         Returns:
             Any: 发送结果
         """
+        reply_mid = 0
+        if reply_message:
+            try:
+                reply_mid = int(event.get_user_id())
+            except ValueError:
+                log("WARNING", "Event has no user_id, cannot reply")
+        if isinstance(message, AtSegment):
+            reply_mid = message.data.get("uid", 0)
         if isinstance(message, MessageSegment):
             message = str(message)
         elif isinstance(message, Message):
+            reply_mid = message["at"][-1].data.get("uid", 0) if message["at"] else 0
             message = "".join(str(seg) for seg in message)
-        user_id = 0
-        if reply_message:
-            try:
-                user_id = int(event.get_user_id())
-            except ValueError:
-                log("WARNING", "Event has no user_id, cannot reply")
         return await self.send_danmaku(
-            event.room_id, message, reply_mid=user_id, **kwargs
+            event.room_id, message, reply_mid=reply_mid, **kwargs
         )
 
 

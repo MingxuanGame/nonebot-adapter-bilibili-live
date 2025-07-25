@@ -11,7 +11,7 @@ from nonebot.utils import escape_tag
 
 from .exception import InteractionEndException
 from .log import log
-from .message import Emoticon, Message
+from .message import Emoticon, Message, MessageSegment
 from .models.event import (
     BatchComboSend,
     BlindGift,
@@ -269,6 +269,11 @@ class DanmakuEvent(MessageEvent):
             msg_id = ""
             color = data["info"][0][3]
             font_size = data["info"][0][2]
+        message = Message.construct(content, emots)
+        if reply_mid or reply_open_id:
+            message.insert(
+                0, MessageSegment.at(reply_mid or reply_open_id, reply_uname)
+            )
         return {
             "time": time,
             "mode": mode,
@@ -277,7 +282,7 @@ class DanmakuEvent(MessageEvent):
             "content": content,
             "emots": emots or {},
             "send_from_me": send_from_me,
-            "message": Message.construct(content, emots),
+            "message": message,
             "sender": sender,
             "room_id": data["room_id"],
             "reply_mid": reply_mid,

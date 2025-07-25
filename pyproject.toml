@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-adapter-bilibili-live"
-version = "0.2.0"
+version = "0.2.1"
 description = "bilibili 直播间协议支持"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -472,7 +472,7 @@ class _InteractWordEvent(NoticeEvent):
     uid: int
     uname: str
     uname_color: str
-    fans_medal: Optional[Medal] = None
+    fans_medal: Optional[WebMedal] = None
 
     @override
     def get_user_id(self) -> str:
@@ -492,7 +492,7 @@ class _InteractWordEvent(NoticeEvent):
 class UserEnterEvent(_InteractWordEvent):
     open_id: str = ""
 
-    msg_type: Literal[1]
+    msg_type: Literal[1] = 1
 
     @override
     def get_event_name(self) -> str:
@@ -521,7 +521,6 @@ class UserEnterEvent(_InteractWordEvent):
             "timestamp": data["data"]["timestamp"],
             "trigger_time": data["data"]["timestamp"],
             "open_id": data["data"]["open_id"],
-            "fans_medal": _open_medal_validator(data["data"]),
         }
 
     @override
@@ -532,8 +531,7 @@ class UserEnterEvent(_InteractWordEvent):
 @cmd("INTERACT_WORD")
 @cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
 class UserFollowEvent(_InteractWordEvent, WebOnlyEvent):
-    msg_type: Literal[2]
-    fans_medal: Optional[WebMedal] = None
+    msg_type: Literal[2] = 2
 
     @override
     def get_event_name(self) -> str:
@@ -547,8 +545,7 @@ class UserFollowEvent(_InteractWordEvent, WebOnlyEvent):
 @cmd("INTERACT_WORD")
 @cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
 class UserShareEvent(_InteractWordEvent, WebOnlyEvent):
-    msg_type: Literal[3]
-    fans_medal: Optional[WebMedal] = None
+    msg_type: Literal[3] = 3
 
     @override
     def get_event_name(self) -> str:
@@ -663,6 +660,7 @@ class SendGiftEvent(NoticeEvent, WebOnlyEvent):
     medal: Optional[Medal] = None
     guard_level: Optional[int] = None
     receive_user_info: Optional[User] = None
+    blind_gift: Optional[BlindGift] = None
 
     action: Optional[str] = None
     batch_combo_id: Optional[str] = None
@@ -680,7 +678,6 @@ class SendGiftEvent(NoticeEvent, WebOnlyEvent):
     gift_icon: str = ""
     combo_gift: Optional[bool] = None
     combo_info: Optional[ComboInfo] = None
-    blind_gift: Optional[BlindGift] = None
 
     @override
     def get_event_name(self) -> str:
@@ -732,6 +729,12 @@ class SendGiftEvent(NoticeEvent, WebOnlyEvent):
             }
         else:
             # WebBot
+            blind_gift = data_obj.get("blind_gift", None)
+            if blind_gift:
+                blind_gift = BlindGift(
+                    blind_gift_id=blind_gift["blind_gift_config_id"],
+                    status=True,
+                )
             result = {
                 "room_id": data["room_id"],
                 **data_obj,
@@ -739,6 +742,7 @@ class SendGiftEvent(NoticeEvent, WebOnlyEvent):
                     uid=data_obj["receive_user_info"]["uid"],
                     name=data_obj["receive_user_info"]["uname"],
                 ),
+                "blind_gift": blind_gift,
                 "medal": _medal_validator(data_obj.get("medal_info", None)),
             }
             if "giftName" in data_obj:

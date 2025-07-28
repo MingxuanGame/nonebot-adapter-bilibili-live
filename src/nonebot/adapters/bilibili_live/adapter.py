@@ -391,7 +391,7 @@ class Adapter(_WebApiAdapterMixin, _OpenplatformAdapterMixin):
                 "that supports HTTP and WebSocket."
                 f"Current driver {self.config.driver} does not support this."
             )
-        self.driver.on_startup(self.startup)
+        self.on_ready(self.startup)
         self.driver.on_shutdown(self.shutdown)
 
     async def startup(self):

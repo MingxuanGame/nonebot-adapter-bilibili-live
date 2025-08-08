@@ -45,6 +45,11 @@ class _Base(BaseAdapter):
         self.tasks = set()
         self.ws = set()
 
+    @classmethod
+    @override
+    def get_name(cls) -> str:
+        return "bilibili Live"
+
     async def _ws(
         self,
         bot: Bot,
@@ -411,11 +416,6 @@ class Adapter(_WebApiAdapterMixin, _OpenplatformAdapterMixin):
             if isinstance(bot, OpenBot):
                 await bot._close()
         self.bots.clear()
-
-    @classmethod
-    @override
-    def get_name(cls) -> str:
-        return "bilibili Live"
 
     @override
     async def _call_api(self, bot: Bot, api: str, **data: Any) -> Any:

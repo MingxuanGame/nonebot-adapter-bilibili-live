@@ -198,4 +198,6 @@ class Message(BaseMessage[MessageSegment]):
                 cached_text.append(s)
         if cached_text:
             segments.append(MessageSegment.text("".join(cached_text)))
+        if cached_emoticon:
+            segments.append(MessageSegment.text("".join(cached_emoticon)))
         return cls(segments)

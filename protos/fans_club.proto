@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-package bilibili.live.component.common_model.fans_club;
-
 //
 message GroupMedalBrief {
     //

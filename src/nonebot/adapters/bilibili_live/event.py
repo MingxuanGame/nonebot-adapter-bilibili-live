@@ -28,9 +28,12 @@ from .models.event import (
     WebMedal,
 )
 from .packet import OpCode, Packet
-from .pb import interact_word_v2_pb2, online_rank_v3_pb2
+from .pb import InteractWordV2, OnlineRankV3
 
-from google.protobuf.message import Message as ProtoMessage
+from betterproto import (
+    Casing,
+    Message as ProtoMessage,
+)
 
 COMMAND_TO_EVENT: dict[str, type] = {}
 COMMAND_TO_PB: dict[str, type[ProtoMessage]] = {}
@@ -423,36 +426,6 @@ class NoticeEvent(Event):
 
 
 def _interact_word_validator(data: dict[str, Any]) -> dict[str, Any]:
-    if isinstance(data["data"], interact_word_v2_pb2.InteractWord):
-        p = data["data"]
-        f = p.fans_medal
-        if f.medal_name:
-            medal = WebMedal(
-                anchor_uname=None,
-                anchor_roomid=f.anchor_roomid,
-                target_id=f.target_id,
-                score=f.score,
-                medal_color=f.medal_color,
-                medal_color_border=f.medal_color_border,
-                medal_color_end=f.medal_color_end,
-                medal_color_start=f.medal_color_start,
-                name=f.medal_name,
-                level=f.medal_level,
-                is_lighted=bool(f.is_lighted),
-                guard_level=GuardLevel(f.guard_level),
-            )
-        else:
-            medal = None
-        return {
-            "msg_type": p.msg_type,
-            "timestamp": p.timestamp,
-            "trigger_time": p.trigger_time,
-            "uid": p.uid,
-            "uname": p.uname,
-            "uname_color": p.uname_color,
-            "room_id": data["room_id"],
-            "fans_medal": medal,
-        }
     return {
         "msg_type": data["data"]["msg_type"],
         "timestamp": data["data"]["timestamp"],
@@ -487,12 +460,12 @@ class _InteractWordEvent(NoticeEvent):
 
 
 @cmd("INTERACT_WORD")
-@cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
+@cmd("INTERACT_WORD_V2", InteractWordV2)
 @cmd("LIVE_OPEN_PLATFORM_LIVE_ROOM_ENTER")
 class UserEnterEvent(_InteractWordEvent):
     open_id: str = ""
 
-    msg_type: Literal[1] = 1
+    msg_type: Literal[1, "1"] = 1
 
     @override
     def get_event_name(self) -> str:
@@ -508,10 +481,7 @@ class UserEnterEvent(_InteractWordEvent):
     def validate(cls, data: dict[str, Any] | Any) -> Any:
         if not isinstance(data, dict):
             return data
-        if (
-            isinstance(data["data"], interact_word_v2_pb2.InteractWord)
-            or "open_id" not in data["data"]
-        ):
+        if isinstance(data["data"], InteractWordV2) or "open_id" not in data["data"]:
             return _interact_word_validator(data)
         return {
             "room_id": data["room_id"],
@@ -529,9 +499,9 @@ class UserEnterEvent(_InteractWordEvent):
 
 
 @cmd("INTERACT_WORD")
-@cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
+@cmd("INTERACT_WORD_V2", InteractWordV2)
 class UserFollowEvent(_InteractWordEvent, WebOnlyEvent):
-    msg_type: Literal[2] = 2
+    msg_type: Literal[2, "2"] = 2
 
     @override
     def get_event_name(self) -> str:
@@ -543,9 +513,9 @@ class UserFollowEvent(_InteractWordEvent, WebOnlyEvent):
 
 
 @cmd("INTERACT_WORD")
-@cmd("INTERACT_WORD_V2", interact_word_v2_pb2.InteractWord)
+@cmd("INTERACT_WORD_V2", InteractWordV2)
 class UserShareEvent(_InteractWordEvent, WebOnlyEvent):
-    msg_type: Literal[3] = 3
+    msg_type: Literal[3, "3"] = 3
 
     @override
     def get_event_name(self) -> str:
@@ -1082,7 +1052,7 @@ class OpenLiveEndEvent(_OpenLiveEvent):
 
 
 @cmd("ONLINE_RANK_V2")
-@cmd("ONLINE_RANK_V3", online_rank_v3_pb2.GoldRankBroadcast)
+@cmd("ONLINE_RANK_V3", OnlineRankV3)
 class OnlineRankEvent(NoticeEvent, WebOnlyEvent):
     online_list: list[Rank]
     rank_type: str
@@ -1100,26 +1070,6 @@ class OnlineRankEvent(NoticeEvent, WebOnlyEvent):
     def validate(cls, data: dict[str, Any] | Any) -> Any:
         if not isinstance(data, dict):
             return data
-        if isinstance(data["data"], online_rank_v3_pb2.GoldRankBroadcast):
-            p = data["data"]
-            return {
-                "online_list": [
-                    type_validate_python(
-                        Rank,
-                        {
-                            "uid": rank.uid,
-                            "uname": rank.uname,
-                            "face": rank.face,
-                            "rank": rank.rank,
-                            "score": rank.score,
-                            "guard_level": rank.guard_level,
-                        },
-                    )
-                    for rank in p.online_list
-                ],
-                "rank_type": p.rank_type,
-                "room_id": data["room_id"],
-            }
         return {
             "online_list": data["data"]["list"],
             "rank_type": data["data"]["rank_type"],
@@ -1563,8 +1513,11 @@ def packet_to_event(packet: Packet, room_id: int) -> Event:
         if (pb := COMMAND_TO_PB.get(cmd)) is not None:
             # https://github.com/SocialSisterYi/bilibili-API-collect/issues/1332
             message = pb()
-            message.ParseFromString(base64.b64decode(data["data"]["pb"]))
-            data["data"] = message
+            message.parse(base64.b64decode(data["data"]["pb"]))
+            data["data"] = message.to_dict(
+                casing=Casing.SNAKE,  # pyright: ignore[reportArgumentType]
+                include_default_values=True,
+            )
         data["room_id"] = room_id
         log("TRACE", f"[{cmd}] Receive: {escape_tag(str(data))}")
         event_model = COMMAND_TO_EVENT.get(cmd)

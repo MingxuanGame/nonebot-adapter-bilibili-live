@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-package bilibili.live.xuserreward.v1;
-
 import "fans_club.proto";
 import "user_dagw.proto";
 
@@ -102,11 +100,11 @@ message InteractWord {
     //
     ContributionInfoV2 contribution_v2 = 19;
     //
-    bilibili.live.component.common_model.fans_club.GroupMedalBrief group_medal = 20;
+    GroupMedalBrief group_medal = 20;
     //
     bool is_mystery = 21;
     //
-    bilibili.live.component.common_model.user_dagw.UserInfo uinfo = 22;
+    UserInfo uinfo = 22;
     //
     UserAnchorRelation relation_tail = 23;
 }

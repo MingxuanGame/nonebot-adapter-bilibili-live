@@ -15,9 +15,9 @@ classifiers = [
     "Topic :: Communications :: Chat",
 ]
 dependencies = [
+    "betterproto>=1.2.5",
     "brotli>=1.1.0",
     "nonebot2>=2.4.2",
-    "protobuf>=6.31.1",
 ]
 authors = [
     {name = "MingxuanGame", email = "MingxuanGame@outlook.com"},
@@ -32,7 +32,7 @@ Changelog = "https://github.com/MingxuanGame/nonebot-adapter-bilibili-live/relea
 
 [dependency-groups]
 dev = [
-    "mypy-protobuf>=3.6.0",
+    "betterproto[compiler]>=1.2.5",
     "pre-commit>=4.2.0",
     "ruff>=0.12.1",
     "types-protobuf>=6.30.2.20250703",

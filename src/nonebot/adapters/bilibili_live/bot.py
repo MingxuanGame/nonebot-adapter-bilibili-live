@@ -10,9 +10,6 @@ from typing_extensions import override
 import uuid
 
 from nonebot.adapters import Bot as BaseBot
-from nonebot.compat import type_validate_python
-from nonebot.drivers import URL, Request, Response
-from nonebot.message import handle_event
 
 from .const import PLATFORM_URL
 from .event import DanmakuEvent, Event, SuperChatEvent
@@ -24,6 +21,10 @@ from .models.room import MasterData, Room, UserRoomStatus
 from .models.user_manage import SilentUserListData
 from .utils import make_header
 from .wbi import wbi_encode
+
+from nonebot.compat import type_validate_python
+from nonebot.drivers import URL, Request, Response
+from nonebot.message import handle_event
 
 if TYPE_CHECKING:
     from .adapter import _OpenplatformAdapterMixin, _WebApiAdapterMixin

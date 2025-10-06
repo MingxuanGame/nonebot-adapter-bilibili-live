@@ -6,8 +6,6 @@ from typing import Any, Callable, Literal, Optional, TypeVar, Union
 from typing_extensions import override
 
 from nonebot.adapters import Event as BaseEvent
-from nonebot.compat import model_dump, model_validator, type_validate_python
-from nonebot.utils import escape_tag
 
 from .exception import InteractionEndException
 from .log import log
@@ -34,6 +32,8 @@ from betterproto import (
     Casing,
     Message as ProtoMessage,
 )
+from nonebot.compat import model_dump, model_validator, type_validate_python
+from nonebot.utils import escape_tag
 
 COMMAND_TO_EVENT: dict[str, type] = {}
 COMMAND_TO_PB: dict[str, type[ProtoMessage]] = {}

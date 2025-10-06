@@ -4,7 +4,6 @@ from enum import IntEnum
 from typing import Any, Optional, Union
 
 from nonebot.compat import field_validator
-
 from pydantic import BaseModel, Field
 
 

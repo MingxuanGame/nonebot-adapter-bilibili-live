@@ -7,15 +7,6 @@ from typing_extensions import override
 
 from nonebot import get_plugin_config
 from nonebot.adapters import Adapter as BaseAdapter
-from nonebot.drivers import (
-    URL,
-    Driver,
-    HTTPClientMixin,
-    Request,
-    WebSocket,
-    WebSocketClientMixin,
-)
-from nonebot.exception import WebSocketClosed
 
 from .bot import Bot, OpenBot, WebBot
 from .config import Config, OpenBotConf, WebBotConf
@@ -34,6 +25,16 @@ from .models.open import Game
 from .packet import OpCode, Packet, ProtocolVersion, new_auth_packet
 from .utils import UA, cookie_str_to_dict, make_header, split_list
 from .wbi import get_key
+
+from nonebot.drivers import (
+    URL,
+    Driver,
+    HTTPClientMixin,
+    Request,
+    WebSocket,
+    WebSocketClientMixin,
+)
+from nonebot.exception import WebSocketClosed
 
 
 class _Base(BaseAdapter):

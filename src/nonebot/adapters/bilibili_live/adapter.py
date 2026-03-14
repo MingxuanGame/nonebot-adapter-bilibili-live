@@ -221,7 +221,15 @@ class _WebApiAdapterMixin(_Base):
     async def _request_buvid3(self, bot: WebBot) -> str:
         request = Request("GET", URL(BUVID3_URL), headers=make_header())
         resp = await self.request(request)
-        return resp.headers["set-cookie"].split(";")[0].split("=")[1]
+        body = resp.content
+        if resp.status_code != 200 or not body:
+            raise RuntimeError(f"Failed to get buvid3: {resp.status_code}, {body}")
+        data = json.loads(body)
+        if data.get("code") != 0:
+            raise RuntimeError(
+                f"Failed to get buvid3: {data.get('code')}, {data.get('message')}"
+            )
+        return data["data"]["buvid"]
 
     async def _auth(self, bot: WebBot, room_id: int) -> dict[str, Any]:
         request = Request(

@@ -6,6 +6,8 @@ from typing import Any, Callable, Literal, Optional, TypeVar, Union
 from typing_extensions import override
 
 from nonebot.adapters import Event as BaseEvent
+from nonebot.compat import model_dump, model_validator, type_validate_python
+from nonebot.utils import escape_tag
 
 from .exception import InteractionEndException
 from .log import log
@@ -32,8 +34,6 @@ from betterproto import (
     Casing,
     Message as ProtoMessage,
 )
-from nonebot.compat import model_dump, model_validator, type_validate_python
-from nonebot.utils import escape_tag
 
 COMMAND_TO_EVENT: dict[str, type] = {}
 COMMAND_TO_PB: dict[str, type[ProtoMessage]] = {}
@@ -1510,6 +1510,8 @@ def packet_to_event(packet: Packet, room_id: int) -> Event:
             data["data"]["game_id"], data["data"]["timestamp"]
         )
     elif packet.opcode == OpCode.Command.value:
+        if "data" not in data:
+            raise RuntimeError(f"Command {cmd} missing data field")
         if (pb := COMMAND_TO_PB.get(cmd)) is not None:
             # https://github.com/SocialSisterYi/bilibili-API-collect/issues/1332
             message = pb()

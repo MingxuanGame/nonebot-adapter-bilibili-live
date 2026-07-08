@@ -1510,6 +1510,8 @@ def packet_to_event(packet: Packet, room_id: int) -> Event:
             data["data"]["game_id"], data["data"]["timestamp"]
         )
     elif packet.opcode == OpCode.Command.value:
+        if "data" not in data:
+            raise RuntimeError(f"Command {cmd} missing data field")
         if (pb := COMMAND_TO_PB.get(cmd)) is not None:
             # https://github.com/SocialSisterYi/bilibili-API-collect/issues/1332
             message = pb()
